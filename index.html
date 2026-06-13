@@ -1858,6 +1858,12 @@ function cambiarNivelMapa(nivel) {
 var GEOJSON_CACHE = { departamento: null, provincia: null, distrito: null };
 var GEOJSON_LOADING = { departamento: false, provincia: false, distrito: false };
 
+// Caches para resolver nombre de departamento/provincia desde código UBIGEO
+// Ejemplo: UBIGEO_DEP_CACHE["13"] = "LA LIBERTAD"
+// Ejemplo: UBIGEO_PROV_CACHE["1303"] = "TRUJILLO"
+var UBIGEO_DEP_CACHE = {};
+var UBIGEO_PROV_CACHE = {};
+
 // URLs CDN (jsDelivr con cache global)
 var GEOJSON_URLS = {
   departamento: 'https://cdn.jsdelivr.net/gh/juaneladio/peru-geojson@master/peru_departamental_simple.geojson',
@@ -1897,12 +1903,16 @@ function nombreGeoJSON(nombreApp) {
 
 // Cargar GeoJSON via fetch (con cache)
 function cargarGeoJSON(nivel, callback) {
-  if (GEOJSON_CACHE[nivel]) { callback(GEOJSON_CACHE[nivel]); return; }
+  if (GEOJSON_CACHE[nivel]) {
+    poblarCachesUbigeo(nivel, GEOJSON_CACHE[nivel]);
+    callback(GEOJSON_CACHE[nivel]);
+    return;
+  }
   if (GEOJSON_LOADING[nivel]) {
-    // Si ya se está cargando, esperar
     var checkInt = setInterval(function() {
       if (GEOJSON_CACHE[nivel]) {
         clearInterval(checkInt);
+        poblarCachesUbigeo(nivel, GEOJSON_CACHE[nivel]);
         callback(GEOJSON_CACHE[nivel]);
       } else if (!GEOJSON_LOADING[nivel]) {
         clearInterval(checkInt);
@@ -1917,13 +1927,76 @@ function cargarGeoJSON(nivel, callback) {
     .then(function(data) {
       GEOJSON_CACHE[nivel] = data;
       GEOJSON_LOADING[nivel] = false;
-      callback(data);
+      poblarCachesUbigeo(nivel, data);
+      // Si estamos en distrito, también precargamos depto y provincia en paralelo
+      // para poder mapear codigos UBIGEO a nombres
+      if (nivel === 'distrito') {
+        precargarUbigeos(function() { callback(data); });
+      } else {
+        callback(data);
+      }
     })
     .catch(function(e) {
       console.error('Error cargando GeoJSON ' + nivel, e);
       GEOJSON_LOADING[nivel] = false;
       callback(null);
     });
+}
+
+// Pre-cargar GeoJSON de departamentos y provincias para poder resolver nombres
+function precargarUbigeos(done) {
+  var faltan = 2;
+  function decr() { faltan--; if (faltan <= 0 && done) done(); }
+
+  // Cargar departamentos
+  if (GEOJSON_CACHE.departamento) {
+    poblarCachesUbigeo('departamento', GEOJSON_CACHE.departamento);
+    decr();
+  } else {
+    fetch(GEOJSON_URLS.departamento)
+      .then(function(r){return r.json();})
+      .then(function(d){
+        GEOJSON_CACHE.departamento = d;
+        poblarCachesUbigeo('departamento', d);
+        decr();
+      })
+      .catch(function(){ decr(); });
+  }
+
+  // Cargar provincias
+  if (GEOJSON_CACHE.provincia) {
+    poblarCachesUbigeo('provincia', GEOJSON_CACHE.provincia);
+    decr();
+  } else {
+    fetch(GEOJSON_URLS.provincia)
+      .then(function(r){return r.json();})
+      .then(function(d){
+        GEOJSON_CACHE.provincia = d;
+        poblarCachesUbigeo('provincia', d);
+        decr();
+      })
+      .catch(function(){ decr(); });
+  }
+}
+
+// Llenar caches de nombre por código UBIGEO
+function poblarCachesUbigeo(nivel, data) {
+  if (!data || !data.features) return;
+  if (nivel === 'departamento') {
+    data.features.forEach(function(f) {
+      var p = f.properties;
+      var cod = String(p.FIRST_IDDP || '').padStart(2, '0');
+      var nom = String(p.NOMBDEP || '').trim();
+      if (cod && nom) UBIGEO_DEP_CACHE[cod] = nom;
+    });
+  } else if (nivel === 'provincia') {
+    data.features.forEach(function(f) {
+      var p = f.properties;
+      var cod = String(p.FIRST_IDPR || '').padStart(4, '0');
+      var nom = String(p.NOMBPROV || '').trim();
+      if (cod && nom) UBIGEO_PROV_CACHE[cod] = nom;
+    });
+  }
 }
 
 function pintarMapaCalor() {
@@ -2009,13 +2082,53 @@ function pintarMapaCalor() {
     }
 
     // Mapeo de nombres normalizados de la app
+    // Para distritos: clave compuesta DEPTO|PROV|DISTRITO para evitar colisiones
+    // (ej: "LA ESPERANZA" existe en La Libertad y otras provincias)
     var gruposNorm = {};
     Object.keys(grupos).forEach(function(k) {
-      gruposNorm[nombreGeoJSON(k)] = grupos[k];
-      gruposNorm[nombreGeoJSON(k)]._nombreOriginal = k;
+      var g = grupos[k];
+      var keyNorm;
+      if (nivelMapa === 'distrito') {
+        // Construir clave con la jerarquía completa usando una visita de muestra
+        var dep = g._dep || '';
+        var prov = g._prov || '';
+        keyNorm = normNm(dep) + '|' + normNm(prov) + '|' + nombreGeoJSON(k);
+      } else if (nivelMapa === 'provincia') {
+        var dep2 = g._dep || '';
+        keyNorm = normNm(dep2) + '|' + nombreGeoJSON(k);
+      } else {
+        keyNorm = nombreGeoJSON(k);
+      }
+      gruposNorm[keyNorm] = g;
+      gruposNorm[keyNorm]._nombreOriginal = k;
     });
 
     var fields = GEOJSON_FIELDS[nivelMapa];
+
+    // Función helper: obtener la clave del GeoJSON feature según el nivel
+    function keyDeFeature(f) {
+      var props = f.properties;
+      var nombre = props[fields.nombre];
+      if (!nombre) return null;
+      if (nivelMapa === 'distrito') {
+        // El distrito GeoJSON tiene IDDIST tipo "130301" donde:
+        //  - dígitos 1-2 = código depto (13 = LA LIBERTAD)
+        //  - dígitos 3-4 = código provincia (03 = TRUJILLO)
+        //  - dígitos 5-6 = código distrito
+        // Necesitamos resolver el nombre del depto y provincia desde el código
+        var idDist = String(props[fields.codigo] || '');
+        var codDep = idDist.substring(0, 2);
+        var codProv = idDist.substring(0, 4);
+        var nomDep = (UBIGEO_DEP_CACHE[codDep] || '').toUpperCase();
+        var nomProv = (UBIGEO_PROV_CACHE[codProv] || '').toUpperCase();
+        return normNm(nomDep) + '|' + normNm(nomProv) + '|' + nombreGeoJSON(nombre);
+      } else if (nivelMapa === 'provincia') {
+        var dep = (props.FIRST_NOMB || '').toUpperCase().trim();
+        return normNm(dep) + '|' + nombreGeoJSON(nombre);
+      } else {
+        return nombreGeoJSON(nombre);
+      }
+    }
 
     // Filtrar features según filtros activos del dashboard
     var featuresFiltradas = geoData.features.filter(function(f) {
@@ -2023,24 +2136,31 @@ function pintarMapaCalor() {
       var nombre = props[fields.nombre];
       if (!nombre) return false;
 
-      // Si hay filtro de departamento y estamos en provincia: mostrar provs del depto
+      // Si estamos en provincia: filtrar por departamento
       if (nivelMapa === 'provincia' && FILTROS.departamento) {
         var depFeat = (props.FIRST_NOMB || '').toUpperCase().trim();
         if (normNm(depFeat) !== normNm(FILTROS.departamento)) return false;
       }
-      // Si hay filtro de provincia y estamos en distrito: mostrar distritos de la provincia
-      // (los distritos GeoJSON tienen IDDIST tipo "150101" donde 1501 es prov)
+
+      // Si estamos en distrito: filtrar por departamento, provincia y distrito
       if (nivelMapa === 'distrito') {
         var idDist = String(props[fields.codigo] || '');
-        if (FILTROS.provincia) {
-          // Necesitamos saber el código de la provincia. La sacamos del nombre.
-          // Como no tenemos mapeo directo, mostramos todos y dejamos que el data filter haga su trabajo.
-        }
-        if (FILTROS.departamento) {
-          // Los primeros 2 dígitos del IDDIST son el código del departamento
-          // Para simplificar, mostraremos solo los distritos que tienen datos en grupos
-          var nombreDistrito = nombreGeoJSON(nombre);
-          if (!gruposNorm[nombreDistrito]) return false;
+        var codDep = idDist.substring(0, 2);
+        var codProv = idDist.substring(0, 4);
+        var nomDep = (UBIGEO_DEP_CACHE[codDep] || '').toUpperCase();
+        var nomProv = (UBIGEO_PROV_CACHE[codProv] || '').toUpperCase();
+
+        // Filtro estricto por departamento
+        if (FILTROS.departamento && normNm(nomDep) !== normNm(FILTROS.departamento)) return false;
+        // Filtro estricto por provincia
+        if (FILTROS.provincia && normNm(nomProv) !== normNm(FILTROS.provincia)) return false;
+        // Filtro estricto por distrito
+        if (FILTROS.distrito && normNm(nombre) !== normNm(FILTROS.distrito)) return false;
+
+        // Si no hay filtros geográficos: solo mostrar distritos que tienen datos
+        if (!FILTROS.departamento && !FILTROS.provincia && !FILTROS.distrito) {
+          var key = keyDeFeature(f);
+          if (!gruposNorm[key]) return false;
         }
       }
 
@@ -2050,22 +2170,21 @@ function pintarMapaCalor() {
     // Crear layer GeoJSON con estilos dinámicos
     var geoLayer = L.geoJSON({type:'FeatureCollection', features: featuresFiltradas}, {
       style: function(feature) {
-        var nombre = feature.properties[fields.nombre];
-        var nNorm = nombreGeoJSON(nombre);
-        var datos = gruposNorm[nNorm];
+        var key = keyDeFeature(feature);
+        var datos = gruposNorm[key];
         var tot = datos ? datos.tot : 0;
         return {
           fillColor: colorPor(tot),
-          weight: 1.2,
+          weight: 1.8,
           opacity: 1,
-          color: '#fff',
-          fillOpacity: tot > 0 ? 0.7 : 0.25
+          color: tot > 0 ? '#fff' : '#CBD5E1',
+          fillOpacity: tot > 0 ? 0.42 : 0.12
         };
       },
       onEachFeature: function(feature, layer) {
         var nombre = feature.properties[fields.nombre];
-        var nNorm = nombreGeoJSON(nombre);
-        var datos = gruposNorm[nNorm];
+        var key = keyDeFeature(feature);
+        var datos = gruposNorm[key];
 
         if (datos) {
           var d = datos;
@@ -2084,7 +2203,7 @@ function pintarMapaCalor() {
         // Resaltar al pasar el mouse
         layer.on('mouseover', function(e) {
           var lyr = e.target;
-          lyr.setStyle({ weight: 2.5, color: '#0F172A', fillOpacity: 0.85 });
+          lyr.setStyle({ weight: 3, color: '#0F172A', fillOpacity: 0.55 });
           lyr.bringToFront();
         });
         layer.on('mouseout', function(e) {
@@ -2095,13 +2214,13 @@ function pintarMapaCalor() {
 
     MAP_LAYERS.push(geoLayer);
 
-    // Etiquetas con nombre + monto en zonas con datos
-    Object.keys(gruposNorm).forEach(function(nNorm) {
-      var datos = gruposNorm[nNorm];
+    // Etiquetas con nombre + monto en zonas con datos (usando keys compuestas)
+    Object.keys(gruposNorm).forEach(function(keyN) {
+      var datos = gruposNorm[keyN];
       if (datos.tot === 0) return;
-      // Buscar la feature correspondiente
+      // Buscar la feature correspondiente usando la key compuesta
       var feat = featuresFiltradas.find(function(f) {
-        return nombreGeoJSON(f.properties[fields.nombre]) === nNorm;
+        return keyDeFeature(f) === keyN;
       });
       if (!feat) return;
       // Centroide aproximado del polígono
@@ -2121,15 +2240,36 @@ function pintarMapaCalor() {
       MAP_LAYERS.push(label);
     });
 
-    // Ajustar vista
+    // Ajustar vista con zoom adecuado según los filtros activos
     setTimeout(function() {
       try {
-        if (featuresFiltradas.length > 0) {
-          MAP_INSTANCE.fitBounds(geoLayer.getBounds(), { padding: [40, 40], maxZoom: nivelMapa==='distrito' ? 13 : (nivelMapa==='provincia' ? 11 : 9) });
+        if (featuresFiltradas.length === 0) return;
+
+        // Si hay filtro específico, zoom agresivo en la zona filtrada
+        var maxZ;
+        if (FILTROS.distrito) {
+          maxZ = 15; // zoom de calles para un distrito
+        } else if (FILTROS.provincia) {
+          maxZ = 12;
+        } else if (FILTROS.departamento) {
+          maxZ = 10;
+        } else if (nivelMapa === 'distrito') {
+          maxZ = 13;
+        } else if (nivelMapa === 'provincia') {
+          maxZ = 11;
+        } else {
+          maxZ = 9;
         }
-      } catch(e) {}
+
+        MAP_INSTANCE.fitBounds(geoLayer.getBounds(), {
+          padding: [40, 40],
+          maxZoom: maxZ,
+          animate: true,
+          duration: 0.6
+        });
+      } catch(e) { console.warn('Error ajustando zoom:', e); }
       MAP_INSTANCE.invalidateSize();
-    }, 100);
+    }, 150);
   });
 }
 
@@ -2184,7 +2324,16 @@ function agruparGeo(data, campo) {
   var map = {};
   data.forEach(function(r){
     var k = r[campo] || 'Sin definir';
-    if(!map[k]) map[k] = {vis:{}, cv:0, sv:0, ext:0, tot:0};
+    if(!map[k]) {
+      map[k] = {vis:{}, cv:0, sv:0, ext:0, tot:0};
+      // Guardar la jerarquía para distritos y provincias
+      if (campo === 'distrito') {
+        map[k]._dep = r.departamento || '';
+        map[k]._prov = r.provincia || '';
+      } else if (campo === 'provincia') {
+        map[k]._dep = r.departamento || '';
+      }
+    }
     map[k].vis[r.id] = true;
     if(r.modo === 'SI') { map[k].cv++; map[k].tot += r.total||0; }
     else {
@@ -2195,7 +2344,6 @@ function agruparGeo(data, campo) {
   Object.keys(map).forEach(function(k){
     var d = map[k];
     d.vis = Object.keys(d.vis).length;
-    // CV y SV cuentan filas, no visitas únicas — corrijo a visitas
     d.neto = d.vis - d.ext;
     d.ef = d.neto > 0 ? Math.round(d.cv/d.neto*100) : 0;
   });
