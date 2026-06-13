@@ -53,8 +53,12 @@ button{font-family:inherit;}
 .topbar-r{display:flex;align-items:center;gap:10px;}
 .btn-date{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);color:#fff;padding:8px 14px;border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:6px;font-family:inherit;}
 .btn-date:hover{background:rgba(255,255,255,.18);}
-.date-input{position:absolute;opacity:0;width:100%;height:100%;left:0;top:0;cursor:pointer;color-scheme:dark;}
-.date-wrap{position:relative;display:inline-block;}
+/* Filtro de fecha: input nativo con apariencia consistente */
+.filt-date{height:34px;padding:0 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;background:var(--bg);font-family:inherit;color:var(--text);min-width:160px;cursor:pointer;-webkit-appearance:none;appearance:none;}
+.filt-date::-webkit-calendar-picker-indicator{cursor:pointer;opacity:.6;filter:invert(.3);}
+.filt-date::-webkit-calendar-picker-indicator:hover{opacity:1;}
+.filt-date:focus{outline:none;border-color:var(--blue);}
+.filt-date.active{background-color:var(--blue-l);border-color:var(--blue);color:var(--blue-d);font-weight:600;}
 .btn-icon{width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.1);border:none;color:#fff;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;}
 .btn-icon:hover{background:rgba(255,255,255,.18);}
 
@@ -284,10 +288,6 @@ button{font-family:inherit;}
       </div>
     </div>
     <div class="topbar-r">
-      <div class="date-wrap">
-        <button class="btn-date" type="button">📅 <span id="tb-fecha">--</span> ▾</button>
-        <input type="date" class="date-input" id="tb-date-input" onchange="onChangeFecha(this.value)" />
-      </div>
       <button class="btn-icon" onclick="recargar()" title="Recargar">↻</button>
       <button class="btn-icon" onclick="abrirConfigURL()" title="Configurar conexión GAS">⚙</button>
       <button class="btn-icon" onclick="logout()" title="Cerrar sesión">⎋</button>
@@ -705,9 +705,6 @@ function iniciarDash() {
   document.getElementById('tb-name').textContent = SESION.nombre;
   var subTxt = SESION.user + ' · ' + (SESION.role==='jefe' ? 'Jefe de Canal · Vista Nacional' : 'Supervisor ' + SESION.zona);
   document.getElementById('tb-sub').textContent = subTxt;
-  document.getElementById('tb-fecha').textContent = fmtFecha(FECHA);
-  var dInp = document.getElementById('tb-date-input');
-  if (dInp) { dInp.value = FECHA; dInp.max = hoy(); }
 
   renderTabs();
   cargarData();
@@ -729,10 +726,14 @@ function setTab(t){
 
 function onChangeFecha(nueva) {
   if (!nueva || !/^\d{4}-\d{2}-\d{2}$/.test(nueva)) return;
-  if (nueva > hoy()) { alert('No se permite fecha futura'); return; }
+  if (nueva > hoy()) {
+    alert('No se permite fecha futura');
+    var inp = document.getElementById('filt-fecha-input');
+    if (inp) inp.value = FECHA;
+    return;
+  }
   FECHA = nueva;
   sessionStorage.setItem('dash_fecha', FECHA);
-  document.getElementById('tb-fecha').textContent = fmtFecha(FECHA);
   cargarData();
 }
 function recargar(){ cargarData(); }
@@ -941,6 +942,12 @@ function abrirConfigURL() {
 function renderFiltros() {
   var fc = document.getElementById('filters');
   var html = '';
+
+  // FECHA: primer filtro, calendario nativo
+  html += '<div class="filt-grp">';
+  html += '<div class="filt-lbl">Fecha</div>';
+  html += '<input type="date" class="filt-date' + (FECHA !== hoy() ? ' active' : '') + '" id="filt-fecha-input" value="' + FECHA + '" max="' + hoy() + '" onchange="onChangeFecha(this.value)" />';
+  html += '</div>';
 
   // Supervisor (solo si es jefe)
   if (SESION.role === 'jefe') {
