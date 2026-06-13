@@ -1,0 +1,2514 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Dashboard S2S · Kenvue</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased;}
+:root{
+  --blue:#2563EB;--blue-d:#1E40AF;--blue-l:#EFF6FF;--blue-ll:#DBEAFE;
+  --dark:#0F172A;--dark2:#1E293B;
+  --bg:#F8FAFC;--card:#FFFFFF;
+  --text:#1E293B;--t2:#64748B;--t3:#94A3B8;
+  --border:#E2E8F0;
+  --green:#059669;--green-l:#D1FAE5;
+  --amber:#D97706;--amber-l:#FEF3C7;
+  --red:#DC2626;--red-l:#FEE2E2;
+  --purple:#7C3AED;--purple-l:#EDE9FE;
+  --shadow:0 1px 3px rgba(15,23,42,.06),0 4px 12px rgba(15,23,42,.04);
+}
+body{font-family:'Inter',-apple-system,system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+.num{font-variant-numeric:tabular-nums;}
+button{font-family:inherit;}
+
+/* ════════ LOGIN ════════ */
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:linear-gradient(135deg,#0F172A 0%,#1E293B 50%,#2563EB 100%);}
+.login-card{background:#fff;border-radius:20px;padding:36px 32px;width:100%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,.3);}
+.login-logo{width:64px;height:64px;background:var(--dark);border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;color:#fff;font-size:30px;}
+.login-title{text-align:center;font-size:20px;font-weight:600;margin-bottom:4px;}
+.login-sub{text-align:center;font-size:13px;color:var(--t2);margin-bottom:24px;}
+.fld{margin-bottom:14px;}
+.fld label{display:block;font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;}
+.fld input,.fld select{width:100%;height:44px;padding:0 14px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;background:#fff;color:var(--text);-webkit-appearance:none;}
+.fld input:focus,.fld select:focus{outline:none;border-color:var(--blue);}
+.btn-login{width:100%;height:48px;background:var(--dark);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;margin-top:8px;transition:.15s;}
+.btn-login:hover{background:var(--blue);}
+.login-err{background:var(--red-l);border-radius:8px;padding:10px 12px;font-size:12px;color:var(--red);margin-bottom:14px;display:none;}
+.login-help{margin-top:18px;padding-top:16px;border-top:1px solid var(--border);font-size:11px;color:var(--t3);text-align:center;line-height:1.6;}
+
+/* ════════ DASH ════════ */
+.dash{display:none;}.dash.on{display:block;}
+.topbar{background:var(--dark);color:#fff;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;gap:14px;position:sticky;top:0;z-index:1100;box-shadow:var(--shadow);}
+.topbar-l{display:flex;align-items:center;gap:12px;}
+.topbar-av{width:36px;height:36px;border-radius:9px;background:var(--blue);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;}
+.topbar-name{font-size:14px;font-weight:600;}
+.topbar-sub{font-size:11px;opacity:.6;margin-top:1px;}
+.topbar-r{display:flex;align-items:center;gap:10px;}
+.btn-date{background:rgba(255,255,255,.1);border:none;color:#fff;padding:8px 14px;border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:6px;}
+.btn-date:hover{background:rgba(255,255,255,.18);}
+.btn-icon{width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.1);border:none;color:#fff;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;}
+.btn-icon:hover{background:rgba(255,255,255,.18);}
+
+/* FILTROS */
+.filters{background:var(--card);border-bottom:1px solid var(--border);padding:12px 24px;display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;position:sticky;top:64px;z-index:1090;box-shadow:0 2px 8px rgba(15,23,42,.04);}
+.filt-grp{display:flex;flex-direction:column;gap:4px;}
+.filt-lbl{font-size:10px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;}
+.filt-sel{height:34px;padding:0 30px 0 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;background:var(--bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748B' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 8px center;-webkit-appearance:none;appearance:none;cursor:pointer;font-family:inherit;color:var(--text);min-width:150px;}
+.filt-sel:focus{outline:none;border-color:var(--blue);}
+.filt-sel.active{background-color:var(--blue-l);border-color:var(--blue);color:var(--blue-d);font-weight:500;}
+.btn-clear{height:34px;padding:0 12px;border:1px solid var(--border);border-radius:8px;font-size:11px;font-weight:500;background:#fff;color:var(--t2);cursor:pointer;}
+.btn-clear:hover{background:var(--red-l);border-color:var(--red);color:var(--red);}
+
+/* TABS */
+.tabs{background:var(--card);border-bottom:1px solid var(--border);padding:0 24px;display:flex;gap:2px;overflow-x:auto;position:sticky;top:114px;z-index:1080;}
+.tabs::-webkit-scrollbar{display:none;}
+.tab{background:none;border:none;padding:14px 16px;font-size:13px;font-weight:500;color:var(--t2);cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;transition:.15s;display:flex;align-items:center;gap:6px;}
+.tab:hover{color:var(--text);}
+.tab.on{color:var(--blue);border-bottom-color:var(--blue);}
+
+.content{padding:20px 24px;max-width:1400px;margin:0 auto;}
+
+/* HERO */
+.hero{background:linear-gradient(135deg,var(--blue-d),var(--blue));color:#fff;border-radius:16px;padding:22px 24px;margin-bottom:20px;position:relative;overflow:hidden;}
+.hero::before{content:'';position:absolute;right:-60px;top:-60px;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,.08);}
+.hero::after{content:'';position:absolute;right:80px;bottom:-80px;width:140px;height:140px;border-radius:50%;background:rgba(255,255,255,.05);}
+.hero-lbl{font-size:11px;font-weight:600;opacity:.85;text-transform:uppercase;letter-spacing:1.2px;margin-bottom:4px;}
+.hero-amount{font-size:38px;font-weight:700;letter-spacing:-.5px;margin-bottom:6px;font-variant-numeric:tabular-nums;}
+.hero-narr{font-size:14px;line-height:1.6;opacity:.95;max-width:800px;position:relative;z-index:1;}
+
+/* INSIGHT */
+.insight{background:var(--amber-l);border-left:3px solid var(--amber);border-radius:10px;padding:12px 14px;margin-bottom:16px;}
+.insight-lbl{font-size:10px;font-weight:700;color:#92400E;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}
+.insight-txt{font-size:13px;color:#92400E;line-height:1.6;}
+
+/* KPIs */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px;}
+.kpi{background:var(--card);border-radius:12px;border:.5px solid var(--border);padding:14px 16px;}
+.kpi-lbl{font-size:11px;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;font-weight:500;margin-bottom:6px;}
+.kpi-val{font-size:24px;font-weight:700;letter-spacing:-.3px;font-variant-numeric:tabular-nums;}
+
+/* SECTIONS */
+.sec{background:var(--card);border-radius:14px;border:.5px solid var(--border);padding:18px 20px;margin-bottom:16px;}
+.sec-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:10px;flex-wrap:wrap;}
+.sec-ttl{font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px;}
+.sec-ttl-ico{width:28px;height:28px;border-radius:8px;background:var(--blue-l);display:flex;align-items:center;justify-content:center;font-size:14px;}
+
+/* TABLE */
+.tbl{width:100%;border-collapse:collapse;font-size:13px;}
+.tbl th{text-align:left;padding:8px 10px;font-weight:600;color:var(--t2);font-size:11px;text-transform:uppercase;letter-spacing:.5px;background:var(--bg);border-bottom:1px solid var(--border);}
+.tbl th.r,.tbl td.r{text-align:right;}
+.tbl th.c,.tbl td.c{text-align:center;}
+.tbl td{padding:11px 10px;border-bottom:1px solid var(--border);vertical-align:middle;}
+.tbl tr:last-child td{border-bottom:none;}
+.tbl tr.row-hov:hover td{background:var(--bg);cursor:pointer;}
+
+/* EXPANDABLE */
+.row-sup{cursor:pointer;}
+.row-sup:hover td{background:var(--blue-l);}
+.row-sup td{font-weight:600;background:#FAFBFC;}
+.exp-icon{display:inline-block;width:18px;height:18px;text-align:center;color:var(--t2);font-size:10px;transition:transform .2s;margin-right:6px;}
+.exp-icon.open{transform:rotate(90deg);color:var(--blue);}
+.row-prom td{padding-left:32px;}
+.row-prom.hidden{display:none;}
+.row-detail td{background:#FAFBFC;padding:0;}
+.detail-wrap{padding:14px 18px 14px 50px;}
+.detail-ttl{font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;}
+
+/* BADGES */
+.bdg{display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;text-transform:uppercase;}
+.bdg-g{background:var(--green-l);color:#065F46;}
+.bdg-a{background:var(--amber-l);color:#92400E;}
+.bdg-r{background:var(--red-l);color:#991B1B;}
+.bdg-b{background:var(--blue-l);color:var(--blue-d);}
+.bdg-p{background:var(--purple-l);color:#5B21B6;}
+
+/* MENTIONS */
+.mentions{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;}
+.mention{background:var(--card);border:.5px solid var(--border);border-radius:10px;padding:14px;border-left:3px solid var(--blue);}
+.mention.top{border-left-color:var(--green);}
+.mention.warn{border-left-color:var(--red);}
+.mention.up{border-left-color:var(--blue);}
+.mention.exec{border-left-color:var(--purple);}
+.mention-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px;}
+.mention.top .mention-lbl{color:var(--green);}
+.mention.warn .mention-lbl{color:var(--red);}
+.mention.up .mention-lbl{color:var(--blue);}
+.mention.exec .mention-lbl{color:var(--purple);}
+.mention-name{font-size:14px;font-weight:600;margin-bottom:2px;}
+.mention-txt{font-size:12px;color:var(--t2);line-height:1.5;}
+
+/* CAUSAL */
+.cau-row{margin-bottom:10px;}
+.cau-row-top{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;margin-bottom:4px;}
+.cau-bar{height:8px;background:var(--bg);border-radius:4px;overflow:hidden;}
+.cau-bar-fill{height:100%;border-radius:4px;}
+
+/* CAUSAL CARD DETAIL */
+.cau-card{background:var(--card);border:.5px solid var(--border);border-radius:12px;margin-bottom:14px;overflow:hidden;}
+.cau-card-hdr{background:linear-gradient(135deg,var(--red-l),#FFFBFB);padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.cau-card-ttl{font-size:14px;font-weight:600;color:var(--red);}
+.cau-card-cnt{font-size:13px;font-weight:700;color:var(--red);}
+.cau-card-body{padding:16px 18px;}
+.cau-detail-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:14px;}
+.cau-block{font-size:11.5px;}
+.cau-block-lbl{font-size:10px;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:6px;display:flex;align-items:center;gap:5px;}
+.cau-block-val{line-height:1.7;color:var(--text);}
+.cau-exec{background:linear-gradient(135deg,var(--purple-l),#F5F3FF);border-left:3px solid var(--purple);border-radius:8px;padding:12px 14px;margin-top:12px;}
+.cau-exec-lbl{font-size:10px;font-weight:700;color:var(--purple);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;}
+.cau-exec-txt{font-size:12.5px;color:#5B21B6;line-height:1.6;}
+
+/* DETAILS row */
+.det-mini{font-size:11px;line-height:1.5;color:var(--t2);}
+.det-sku{background:#F8FAFC;border-radius:6px;padding:6px 8px;margin-bottom:3px;font-size:11px;}
+
+/* COMMENTS */
+.com-textarea{width:100%;min-height:80px;border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;font-size:13px;font-family:inherit;resize:vertical;color:var(--text);}
+.com-textarea:focus{outline:none;border-color:var(--blue);}
+.btn-save{background:var(--blue);color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;margin-top:8px;}
+.btn-save:hover{background:var(--blue-d);}
+
+.empty{text-align:center;padding:32px;color:var(--t3);font-size:13px;}
+.loading{text-align:center;padding:40px;color:var(--t2);font-size:13px;}
+.spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--blue);border-radius:50%;margin:0 auto 12px;animation:spin 1s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* MAPA */
+.map-wrap{height:480px;border-radius:12px;overflow:hidden;border:1px solid var(--border);position:relative;z-index:1;isolation:isolate;}
+.map-inner{height:100%;width:100%;z-index:1;}
+.leaflet-container{z-index:1 !important;}
+.leaflet-pane,.leaflet-top,.leaflet-bottom{z-index:1 !important;}
+.leaflet-tile-pane{z-index:2 !important;}
+.leaflet-overlay-pane{z-index:4 !important;}
+.leaflet-shadow-pane{z-index:5 !important;}
+.leaflet-marker-pane{z-index:6 !important;}
+.leaflet-tooltip-pane{z-index:7 !important;}
+.leaflet-popup-pane{z-index:8 !important;}
+.leaflet-control{z-index:10 !important;}
+.map-legend{position:absolute;bottom:14px;right:14px;background:rgba(255,255,255,.96);backdrop-filter:blur(6px);border-radius:10px;padding:12px 14px;box-shadow:0 2px 12px rgba(0,0,0,.12);font-size:11px;z-index:400;border:1px solid var(--border);}
+.map-legend-ttl{font-size:10px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;}
+.map-legend-row{display:flex;align-items:center;gap:6px;margin-bottom:4px;font-size:11px;color:var(--text);}
+.map-legend-dot{width:14px;height:14px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.15);}
+.map-controls{position:absolute;top:14px;left:14px;background:rgba(255,255,255,.96);backdrop-filter:blur(6px);border-radius:10px;padding:8px;box-shadow:0 2px 12px rgba(0,0,0,.12);z-index:400;border:1px solid var(--border);display:flex;gap:4px;}
+.map-ctrl-btn{background:none;border:none;padding:6px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;color:var(--t2);font-family:inherit;}
+.map-ctrl-btn.on{background:var(--blue);color:#fff;}
+.map-ctrl-btn:hover:not(.on){background:var(--bg);}
+.leaflet-popup-content{font-family:'Inter',sans-serif;font-size:12px;margin:10px 12px;}
+.leaflet-popup-content strong{color:var(--blue-d);}
+.pdv-marker{font-size:10px;font-weight:700;color:#fff;text-align:center;line-height:1;font-family:'Inter',sans-serif;}
+
+.demo-banner{background:linear-gradient(135deg,#FEF3C7,#FDE68A);border-bottom:1px solid #FCD34D;padding:8px 16px;text-align:center;font-size:12px;color:#92400E;font-weight:500;}
+
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+@media (max-width:768px){
+  .g2{grid-template-columns:1fr;}
+  .topbar{padding:12px 14px;}.topbar-sub{display:none;}
+  .filters{padding:10px 14px;top:64px;}
+  .tabs{padding:0 14px;top:auto;}
+  .content{padding:14px;}
+  .hero-amount{font-size:30px;}.hero-narr{font-size:13px;}
+  .sec{padding:14px;}.kpi{padding:12px;}.kpi-val{font-size:20px;}
+  .tbl{font-size:11.5px;}.tbl td,.tbl th{padding:7px 6px;}
+  .filt-sel{min-width:120px;font-size:11px;}
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="screen-login" class="login-wrap">
+  <div class="login-card">
+    <div class="login-logo">📊</div>
+    <p class="login-title">Dashboard S2S</p>
+    <p class="login-sub">Acceso ejecutivo · Kenvue Perú</p>
+    <div class="login-err" id="login-err"></div>
+    <div class="fld">
+      <label>Usuario</label>
+      <input type="text" id="lg-user" placeholder="JEFECANAL, SUPLIMA..." autocomplete="username" style="text-transform:uppercase"/>
+    </div>
+    <div class="fld">
+      <label>Contraseña</label>
+      <input type="password" id="lg-pass" placeholder="••••••••" autocomplete="current-password"/>
+    </div>
+    <div class="fld">
+      <label>Fecha de análisis</label>
+      <input type="date" id="lg-date"/>
+    </div>
+    <button class="btn-login" onclick="doLogin()">Ingresar al Dashboard →</button>
+    <div class="login-help">
+      <strong>Usuarios de prueba:</strong><br>
+      JEFECANAL / JEFE123$ &nbsp;·&nbsp; SUPLIMA / SUPER123$
+    </div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="screen-dash" class="dash">
+  <div class="demo-banner">⚠️ DATOS DE DEMOSTRACIÓN — Cuando se conecte el GAS verá los datos reales del Google Sheets.</div>
+
+  <div class="topbar">
+    <div class="topbar-l">
+      <div class="topbar-av" id="tb-av">--</div>
+      <div>
+        <div class="topbar-name" id="tb-name">--</div>
+        <div class="topbar-sub" id="tb-sub">--</div>
+      </div>
+    </div>
+    <div class="topbar-r">
+      <button class="btn-date" onclick="cambiarFecha()">📅 <span id="tb-fecha">--</span></button>
+      <button class="btn-icon" onclick="recargar()" title="Recargar">↻</button>
+      <button class="btn-icon" onclick="abrirConfigURL()" title="Configurar conexión GAS">⚙</button>
+      <button class="btn-icon" onclick="logout()" title="Cerrar sesión">⎋</button>
+    </div>
+  </div>
+
+  <!-- FILTROS -->
+  <div class="filters" id="filters"></div>
+
+  <!-- TABS -->
+  <div class="tabs" id="tabs"></div>
+
+  <!-- CONTENT -->
+  <div class="content" id="content"></div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════
+// COORDENADAS GEOGRÁFICAS (lat, lng) — Departamentos, provincias y distritos clave
+// ════════════════════════════════════════════════════════
+var GEO_COORDS = {
+  // Departamentos (centroides)
+  departamento: {
+    "LIMA":         [-12.0464, -77.0428],
+    "CALLAO":       [-12.0500, -77.1400],
+    "AREQUIPA":     [-16.4090, -71.5375],
+    "CUSCO":        [-13.5319, -71.9675],
+    "TACNA":        [-18.0146, -70.2536],
+    "LA LIBERTAD":  [-8.1116,  -79.0289],
+    "LAMBAYEQUE":   [-6.7714,  -79.8409],
+    "ICA":          [-14.0678, -75.7286],
+    "PIURA":        [-5.1945,  -80.6328],
+    "JUNIN":        [-12.0651, -75.2049],
+    "ANCASH":       [-9.5277,  -77.5278],
+    "PUNO":         [-15.8402, -70.0219],
+    "CAJAMARCA":    [-7.1611,  -78.5126]
+  },
+  // Provincias / Ciudades principales
+  provincia: {
+    "LIMA":          [-12.0464, -77.0428],
+    "CALLAO":        [-12.0500, -77.1400],
+    "AREQUIPA":      [-16.4090, -71.5375],
+    "CUSCO":         [-13.5319, -71.9675],
+    "TACNA":         [-18.0146, -70.2536],
+    "TRUJILLO":      [-8.1116,  -79.0289],
+    "CHICLAYO":      [-6.7714,  -79.8409],
+    "ICA":           [-14.0678, -75.7286],
+    "PIURA":         [-5.1945,  -80.6328],
+    "HUANCAYO":      [-12.0651, -75.2049],
+    "TARMA":         [-11.4196, -75.6892]
+  },
+  // Distritos (centroides aproximados)
+  distrito: {
+    // LIMA
+    "SAN JUAN DE LURIGANCHO": [-12.0050, -76.9930],
+    "SMP":                    [-11.9920, -77.0790],
+    "COMAS":                  [-11.9300, -77.0530],
+    "INDEPENDENCIA":          [-11.9930, -77.0570],
+    "RIMAC":                  [-12.0319, -77.0381],
+    "MIRAFLORES":             [-12.1196, -77.0290],
+    "SAN ISIDRO":             [-12.1000, -77.0333],
+    "SURCO":                  [-12.1450, -76.9920],
+    "LA MOLINA":              [-12.0830, -76.9450],
+    "BREÑA":                  [-12.0570, -77.0500],
+    "JESUS MARIA":            [-12.0750, -77.0500],
+    "LINCE":                  [-12.0900, -77.0400],
+    "MAGDALENA":              [-12.0930, -77.0710],
+    "SAN MIGUEL":             [-12.0780, -77.0850],
+    "PUEBLO LIBRE":           [-12.0750, -77.0640],
+    // CALLAO
+    "CALLAO":                 [-12.0500, -77.1400],
+    "BELLAVISTA":             [-12.0640, -77.1240],
+    "LA PERLA":               [-12.0680, -77.1410],
+    "VENTANILLA":             [-11.8780, -77.1240],
+    // AREQUIPA
+    "AREQUIPA":               [-16.4090, -71.5375],
+    "CAYMA":                  [-16.3796, -71.5489],
+    "CERRO COLORADO":         [-16.3700, -71.5700],
+    "YANAHUARA":              [-16.3917, -71.5475],
+    "ALTO SELVA ALEGRE":      [-16.3782, -71.5141],
+    "JACOBO HUNTER":          [-16.4400, -71.5700],
+    "PAUCARPATA":             [-16.4200, -71.5050],
+    // CUSCO
+    "CUSCO":                  [-13.5319, -71.9675],
+    "SAN JERONIMO":           [-13.5350, -71.8830],
+    "WANCHAQ":                [-13.5300, -71.9530],
+    // TACNA
+    "TACNA":                  [-18.0146, -70.2536],
+    "ALTO DE LA ALIANZA":     [-17.9870, -70.2370],
+    // TRUJILLO
+    "TRUJILLO":               [-8.1116,  -79.0289],
+    "LA ESPERANZA":           [-8.0810,  -79.0470],
+    // CHICLAYO
+    "CHICLAYO":               [-6.7714,  -79.8409],
+    "JOSE LEONARDO ORTIZ":    [-6.7610,  -79.8480],
+    // ICA
+    "ICA":                    [-14.0678, -75.7286],
+    "SUBTANJALLA":            [-14.0270, -75.7320],
+    // PIURA
+    "PIURA":                  [-5.1945,  -80.6328],
+    "CASTILLA":               [-5.1990,  -80.6240],
+    // HUANCAYO
+    "HUANCAYO":               [-12.0651, -75.2049],
+    "EL TAMBO":               [-12.0540, -75.2200],
+    "TARMA":                  [-11.4196, -75.6892]
+  }
+};
+
+// Bounding boxes aproximados [[sur,oeste],[norte,este]] para enmarcar zonas como polígonos
+var GEO_BOUNDS = {
+  departamento: {
+    "LIMA":         [[-13.20, -77.85], [-10.30, -76.20]],
+    "CALLAO":       [[-12.12, -77.20], [-11.85, -77.05]],
+    "AREQUIPA":     [[-17.20, -73.50], [-14.50, -70.50]],
+    "CUSCO":        [[-15.00, -73.20], [-12.40, -70.50]],
+    "TACNA":        [[-18.40, -70.80], [-17.00, -69.40]],
+    "LA LIBERTAD":  [[-8.80,  -79.70], [-7.20,  -77.40]],
+    "LAMBAYEQUE":   [[-7.30,  -80.30], [-5.80,  -79.10]],
+    "ICA":          [[-15.40, -76.30], [-13.10, -74.70]],
+    "PIURA":        [[-6.40,  -81.30], [-4.10,  -79.20]],
+    "JUNIN":        [[-13.00, -76.10], [-10.70, -73.80]],
+    "ANCASH":       [[-10.80, -78.40], [-8.20,  -76.50]],
+    "PUNO":         [[-17.40, -71.30], [-13.30, -68.70]],
+    "CAJAMARCA":    [[-8.30,  -79.50], [-4.80,  -77.40]]
+  },
+  provincia: {
+    "LIMA":         [[-12.45, -77.20], [-11.65, -76.60]],
+    "CALLAO":       [[-12.12, -77.20], [-11.85, -77.05]],
+    "AREQUIPA":     [[-16.65, -71.85], [-16.15, -71.30]],
+    "CUSCO":        [[-13.75, -72.15], [-13.30, -71.80]],
+    "TACNA":        [[-18.15, -70.40], [-17.85, -70.10]],
+    "TRUJILLO":     [[-8.25,  -79.20], [-7.95,  -78.85]],
+    "CHICLAYO":     [[-6.90,  -80.00], [-6.65,  -79.70]],
+    "ICA":          [[-14.20, -75.85], [-13.95, -75.60]],
+    "PIURA":        [[-5.35,  -80.80], [-5.05,  -80.50]],
+    "HUANCAYO":     [[-12.20, -75.35], [-11.95, -75.10]],
+    "TARMA":        [[-11.55, -75.80], [-11.30, -75.55]]
+  },
+  // Para distritos: pequeño cuadrante alrededor del centroide
+  distrito: {} // Se genera dinámicamente a partir de GEO_COORDS.distrito
+};
+
+// Generar bounds aproximados para distritos (cuadrante ~3.5km alrededor)
+(function() {
+  var dl = 0.018;
+  Object.keys(GEO_COORDS.distrito).forEach(function(k) {
+    var c = GEO_COORDS.distrito[k];
+    GEO_BOUNDS.distrito[k] = [[c[0]-dl, c[1]-dl], [c[0]+dl, c[1]+dl]];
+  });
+})();
+
+// ════════════════════════════════════════════════════════
+// MAPEO DE USUARIOS (del Excel cargado)
+// ════════════════════════════════════════════════════════
+var USERS = {
+  "JEFECANAL":   { pass:"JEFE123$",  role:"jefe", nombre:"SEBASTIAN PEREYRA", zona:"Nacional" },
+  "SUPLIMA":     { pass:"SUPER123$", role:"sup",  nombre:"ALBERTO SILVA",     zona:"Lima" },
+  "SUPAREQUIPA": { pass:"SUPER123$", role:"sup",  nombre:"CARLOS MAMANI",     zona:"Sur" },
+  "SUPCHICLAYO": { pass:"SUPER123$", role:"sup",  nombre:"MIGUEL BAZAN",      zona:"Norte" },
+  "SUPPIURA":    { pass:"SUPER123$", role:"sup",  nombre:"ROBERTO ARICA",     zona:"Piura" },
+  "SUPHUANCAYO": { pass:"SUPER123$", role:"sup",  nombre:"GABRIELA YMAÑA",    zona:"Centro" },
+  "USUARIOPRUEBA":{ pass:"SUPER123$",role:"sup", nombre:"SEBASTIAN PEREYRA", zona:"Pruebas" }
+};
+
+// Cada supervisor con sus promotoras (de tu Excel)
+var SUP_MAP = {
+  "SUPLIMA":     ["PROMLIM1","PROMLIM3","PROMLIM5","PROMLIM6","PROMAD"],
+  "SUPAREQUIPA": ["PROMAQP","PROMCUS","PROMTAC"],
+  "SUPCHICLAYO": ["PROMTRUX","PROMCIX"],
+  "SUPPIURA":    ["PROMICA","PROMPIU"],
+  "SUPHUANCAYO": ["PROMHYO","PROMTPP"]
+};
+
+var TODOS_PROMS = ["PROMAQP","PROMCUS","PROMHYO","PROMTRUX","PROMCIX","PROMLIM1","PROMLIM3","PROMLIM5","PROMLIM6","PROMAD","PROMICA","PROMPIU","PROMTPP","PROMTAC"];
+
+// ════════════════════════════════════════════════════════
+// CAUSALES (con preguntas asociadas — para análisis ejecutivo)
+// ════════════════════════════════════════════════════════
+var CAUSALES_INFO = {
+  "AUN TIENE STOCK / BAJA ROTACION": {
+    tipo: "interna",
+    preguntas: ["SKUs en stock","Unidades aproximadas","Precio de venta UND/DOC mayorista"],
+    icono: "📦"
+  },
+  "RECHAZO POR PRECIO": {
+    tipo: "interna",
+    preguntas: ["Marca competidora","Precio de venta de la competencia"],
+    icono: "💵"
+  },
+  "RECHAZO POR BAJO MARGEN DE GANANCIA": {
+    tipo: "interna",
+    preguntas: ["SKUs en stock","Distribuidora a la que compra","Precio compra","Precio venta mayorista"],
+    icono: "📉"
+  },
+  "RECHAZA POR PRODUCTO BAJA CALIDAD": {
+    tipo: "interna",
+    preguntas: ["Producto afectado","Comentario del cliente"],
+    icono: "⚠️"
+  },
+  "DISTRIBUIDORA SIN STOCK": {
+    tipo: "interna",
+    preguntas: ["Productos solicitados","Cantidades requeridas"],
+    icono: "🚚"
+  },
+  "CERRADO": {tipo:"externa", preguntas:[], icono:"🔒"},
+  "NO TIENE EFECTIVO / DINERO": {tipo:"externa", preguntas:[], icono:"💰"},
+  "NO SE ENCONTRABA EL DUENO": {tipo:"externa", preguntas:[], icono:"👤"},
+  "YA FUE VISITADO POR OTRO VENDEDOR": {
+    tipo: "externa",
+    preguntas: ["Distribuidora que lo visitó antes"],
+    icono: "🚶"
+  },
+  "YA FUE VISITADO POR CORREDOR (QUEMA)": {tipo:"externa", preguntas:[], icono:"🚶"},
+  "NO VENDE NINGUNA CATEGORIA O NUESTRAS MARCAS": {tipo:"externa", preguntas:[], icono:"🚫"}
+};
+
+// ════════════════════════════════════════════════════════
+// DATOS DEMO
+// ════════════════════════════════════════════════════════
+function generarDataDemo(fecha) {
+  var seed = parseInt(fecha.replace(/-/g,''));
+  var rng = function(n) { return ((seed * n * 9301 + 49297) % 233280) / 233280; };
+
+  var SKUS = [
+    {ean:"7750145090101", nm:"Neko Champu Original 75g", mc:"Neko", precio:1.80},
+    {ean:"7750145090102", nm:"Neko Champu Manzanilla 75g", mc:"Neko", precio:1.80},
+    {ean:"7750145090201", nm:"Neko Champu 110g", mc:"Neko", precio:2.30},
+    {ean:"7750145090301", nm:"Listerine Cool Mint 250ml", mc:"Listerine", precio:14.00},
+    {ean:"7750145090401", nm:"Display Manzanilla 25ml", mc:"Neko", precio:4.50},
+    {ean:"7750145090501", nm:"Display Original 25ml", mc:"Neko", precio:4.50},
+    {ean:"7750145090601", nm:"Listerine Total Care 500ml", mc:"Listerine", precio:25.00},
+    {ean:"7750145090701", nm:"Sedal Champu 200ml", mc:"Sedal", precio:8.00}
+  ];
+
+  var COMPETIDORES = ["COLGATE","PALMOLIVE","DERSA","CIELO","SAN MATEO"];
+  var DISTRIBUIDORAS_GEN = ["DIJISA","EDUSA","DIMEXA","ARCA","DISTR PERU","DROKASA","MAYORISTA SA"];
+
+  var GEO = {
+    "PROMLIM1": [["LIMA","LIMA","SAN JUAN DE LURIGANCHO"],["LIMA","LIMA","SMP"],["LIMA","LIMA","COMAS"],["LIMA","LIMA","INDEPENDENCIA"],["LIMA","LIMA","RIMAC"]],
+    "PROMLIM3": [["LIMA","LIMA","MIRAFLORES"],["LIMA","LIMA","SAN ISIDRO"],["LIMA","LIMA","SURCO"],["LIMA","LIMA","LA MOLINA"]],
+    "PROMLIM5": [["LIMA","LIMA","BREÑA"],["LIMA","LIMA","JESUS MARIA"],["LIMA","LIMA","LINCE"],["LIMA","LIMA","MAGDALENA"]],
+    "PROMLIM6": [["LIMA","LIMA","SAN MIGUEL"],["LIMA","LIMA","PUEBLO LIBRE"]],
+    "PROMAD":   [["CALLAO","CALLAO","CALLAO"],["CALLAO","CALLAO","BELLAVISTA"],["CALLAO","CALLAO","LA PERLA"],["CALLAO","CALLAO","VENTANILLA"]],
+    "PROMAQP":  [["AREQUIPA","AREQUIPA","AREQUIPA"],["AREQUIPA","AREQUIPA","CAYMA"],["AREQUIPA","AREQUIPA","CERRO COLORADO"],["AREQUIPA","AREQUIPA","YANAHUARA"]],
+    "PROMCUS":  [["CUSCO","CUSCO","CUSCO"],["CUSCO","CUSCO","SAN JERONIMO"],["CUSCO","CUSCO","WANCHAQ"]],
+    "PROMTAC":  [["TACNA","TACNA","TACNA"],["TACNA","TACNA","ALTO DE LA ALIANZA"]],
+    "PROMTRUX": [["LA LIBERTAD","TRUJILLO","TRUJILLO"],["LA LIBERTAD","TRUJILLO","LA ESPERANZA"]],
+    "PROMCIX":  [["LAMBAYEQUE","CHICLAYO","CHICLAYO"],["LAMBAYEQUE","CHICLAYO","JOSE LEONARDO ORTIZ"]],
+    "PROMICA":  [["ICA","ICA","ICA"],["ICA","ICA","SUBTANJALLA"]],
+    "PROMPIU":  [["PIURA","PIURA","PIURA"],["PIURA","PIURA","CASTILLA"]],
+    "PROMHYO":  [["JUNIN","HUANCAYO","HUANCAYO"],["JUNIN","HUANCAYO","EL TAMBO"]],
+    "PROMTPP":  [["JUNIN","TARMA","TARMA"]]
+  };
+
+  var NOMBRES_PDV = ["BODEGA SAN MARTIN","MINIMARKET LOS PINOS","TIENDA EL SOL","BODEGA YENNY","ABARROTES MARIA","BODEGA LA ESQUINA","MERCADO EL PUEBLO","BODEGA GLORIA","TIENDA CARLOS","BAZAR ROSITA","MINIMARKET BERTHA","BODEGA ANTONIO","ABARROTES PEPE","TIENDA AURORA","BODEGA JUANITA","MINIMARKET ELSA","TIENDA SAN PABLO","BODEGA PILAR","ABARROTES NORA","BODEGA RUTH","MINIMARKET DELIA","TIENDA JORGE","BODEGA MIRTHA","ABARROTES FELIX","BODEGA EVA","MINIMARKET LUIS","TIENDA AMPARO","BODEGA SOFIA","ABARROTES OSCAR","BODEGA ROSA"];
+
+  var COMENTARIOS_CALIDAD = [
+    "Cliente menciona que el champu deja el cabello aspero",
+    "Reclamo por color del producto diferente al usual",
+    "Sabor del enjuague muy fuerte para clientela infantil",
+    "Display llega con tapa floja",
+    "Olor muy intenso, mareo en aplicacion"
+  ];
+
+  var data = [];
+  var pdvCounter = 1000;
+
+  TODOS_PROMS.forEach(function(prom, pIdx) {
+    if (prom === "PROMLIM6") return; // Sin iniciar
+
+    var nVisitas = 8 + Math.floor(rng(pIdx+1) * 22);
+    if (prom === "PROMLIM1") nVisitas = 22;
+    if (prom === "PROMAD") nVisitas = 32;
+    if (prom === "PROMTPP") nVisitas = 6;
+
+    var zonas = GEO[prom] || [["LIMA","LIMA","LIMA"]];
+    var distbase = "DIJISA";
+    if (prom.indexOf("AQP")>=0||prom.indexOf("CUS")>=0||prom.indexOf("TAC")>=0) distbase = "DIMEXA";
+    if (prom.indexOf("CIX")>=0||prom.indexOf("TRUX")>=0) distbase = "ARCA";
+    if (prom.indexOf("PIU")>=0||prom.indexOf("ICA")>=0) distbase = "DISTR PERU";
+    if (prom.indexOf("HYO")>=0||prom.indexOf("TPP")>=0) distbase = "DROKASA";
+
+    for (var v = 0; v < nVisitas; v++) {
+      var conPedido = rng(pIdx*100+v) > 0.42;
+      var id = "1781" + String(pIdx).padStart(2,'0') + String(v).padStart(3,'0') + "000";
+      var pdvNm = NOMBRES_PDV[(pIdx*7+v) % NOMBRES_PDV.length] + " #" + (pdvCounter++);
+      var zona = zonas[v % zonas.length];
+      var hora = (8 + Math.floor(v/3)) + ":" + String((v*7)%60).padStart(2,'0');
+
+      var base = {
+        id:id, fecha:fecha, hora:hora, usuario:prom,
+        dist:distbase + " " + zona[0], pdv:pdvNm,
+        departamento:zona[0], provincia:zona[1], distrito:zona[2]
+      };
+
+      if (conPedido) {
+        var nSkus = 1 + Math.floor(rng(pIdx*200+v)*3);
+        var total = 0;
+        var pedido = [];
+        for (var s = 0; s < nSkus; s++) {
+          var sku = SKUS[(pIdx*v + s*3) % SKUS.length];
+          var qty = 1 + Math.floor(rng(pIdx*300+v+s)*5);
+          total += qty * sku.precio;
+          pedido.push({ean:sku.ean, nm:sku.nm, mc:sku.mc, qty:qty, price:sku.precio});
+        }
+        data.push(Object.assign({}, base, {modo:"SI", pedido:pedido, total:total, causal:"", causalDet:""}));
+      } else {
+        var causalKeys = Object.keys(CAUSALES_INFO);
+        var causal = causalKeys[v % causalKeys.length];
+        var det = "";
+
+        if (causal === "AUN TIENE STOCK / BAJA ROTACION") {
+          var sku1 = SKUS[v % SKUS.length];
+          var unid = 3 + v%8;
+          det = "SKUs: " + sku1.nm + " (" + unid + " UND, S/ " + sku1.precio.toFixed(2) + ")";
+        } else if (causal === "RECHAZO POR PRECIO") {
+          var comp = COMPETIDORES[v % COMPETIDORES.length];
+          var precioComp = (1.20 + rng(v+10)*0.40).toFixed(2);
+          det = "Marca: " + comp + " | Precio venta: S/ " + precioComp;
+        } else if (causal === "RECHAZO POR BAJO MARGEN DE GANANCIA") {
+          var sku2 = SKUS[(v+2) % SKUS.length];
+          var dist = DISTRIBUIDORAS_GEN[v % DISTRIBUIDORAS_GEN.length];
+          var compra = (sku2.precio - 0.30).toFixed(2);
+          var venta = (sku2.precio + 0.10).toFixed(2);
+          det = "SKUs: " + sku2.nm + " (compra S/ " + compra + ", venta S/ " + venta + ") | Dist compra: " + dist;
+        } else if (causal === "RECHAZA POR PRODUCTO BAJA CALIDAD") {
+          var sku3 = SKUS[(v+3) % SKUS.length];
+          var coment = COMENTARIOS_CALIDAD[v % COMENTARIOS_CALIDAD.length];
+          det = "Producto: " + sku3.nm + " | Comentario: " + coment;
+        } else if (causal === "DISTRIBUIDORA SIN STOCK") {
+          var sku4 = SKUS[(v+1) % SKUS.length];
+          var cant = 2 + v%6;
+          det = "Productos deseados: " + sku4.nm + " (" + cant + " UND)";
+        } else if (causal === "YA FUE VISITADO POR OTRO VENDEDOR") {
+          var distVis = DISTRIBUIDORAS_GEN[(v+2) % DISTRIBUIDORAS_GEN.length];
+          det = "Distribuidora que visito antes: " + distVis;
+        }
+
+        data.push(Object.assign({}, base, {modo:"NO", pedido:[], total:0, causal:causal, causalDet:det}));
+      }
+    }
+  });
+  return data;
+}
+
+// ════════════════════════════════════════════════════════
+// ESTADO GLOBAL
+// ════════════════════════════════════════════════════════
+var SESION = null;
+var FECHA = "";
+var DATA = [];
+var TAB_ACTUAL = "resumen";
+var FILTROS = { supervisor:"", promotora:"", departamento:"", provincia:"", distrito:"" };
+var EXPANDED_SUPS = {};
+var EXPANDED_PROMS = {};
+var TABS_CONFIG = [
+  {id:"resumen", lbl:"Resumen", ico:"📊"},
+  {id:"causales", lbl:"Causales", ico:"⚠️"},
+  {id:"productos", lbl:"Productos", ico:"📦"},
+  {id:"geo", lbl:"Geográfico", ico:"📍"},
+  {id:"conclusiones", lbl:"Conclusiones", ico:"📝"}
+];
+
+// ════════════════════════════════════════════════════════
+// UTILS
+// ════════════════════════════════════════════════════════
+function fmt(n){return Number(n||0).toLocaleString('es-PE',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function fmtN(n){return Number(n||0).toLocaleString('es-PE');}
+function hoy(){var h=new Date();return h.getFullYear()+'-'+String(h.getMonth()+1).padStart(2,'0')+'-'+String(h.getDate()).padStart(2,'0');}
+function fmtFecha(f){if(!f)return'';var p=f.split('-');var dias=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];var meses=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Set','Oct','Nov','Dic'];var dt=new Date(f+'T12:00:00');return dias[dt.getDay()]+' '+parseInt(p[2])+' '+meses[parseInt(p[1])-1]+' '+p[0];}
+
+// ════════════════════════════════════════════════════════
+// LOGIN
+// ════════════════════════════════════════════════════════
+window.addEventListener('load', function(){
+  document.getElementById('lg-date').value = hoy();
+  document.getElementById('lg-date').max = hoy();
+  document.getElementById('lg-pass').addEventListener('keydown', function(e){ if(e.key==='Enter') doLogin(); });
+  var saved = sessionStorage.getItem('dash_sesion');
+  if (saved) {
+    try { SESION = JSON.parse(saved); FECHA = sessionStorage.getItem('dash_fecha') || hoy(); iniciarDash(); } catch(e){}
+  }
+});
+
+function doLogin() {
+  var u = document.getElementById('lg-user').value.trim().toUpperCase();
+  var p = document.getElementById('lg-pass').value;
+  var f = document.getElementById('lg-date').value || hoy();
+  if (!u) { showErr('Ingresa tu usuario'); return; }
+  if (!USERS[u]) { showErr('Usuario "'+u+'" no encontrado'); return; }
+  if (USERS[u].pass !== p) { showErr('Contraseña incorrecta'); return; }
+  SESION = { user:u, role:USERS[u].role, nombre:USERS[u].nombre, zona:USERS[u].zona };
+  FECHA = f;
+  sessionStorage.setItem('dash_sesion', JSON.stringify(SESION));
+  sessionStorage.setItem('dash_fecha', FECHA);
+  iniciarDash();
+}
+function showErr(msg){var err=document.getElementById('login-err');err.textContent=msg;err.style.display='block';}
+function logout(){
+  if(!confirm('¿Cerrar sesión?')) return;
+  sessionStorage.removeItem('dash_sesion'); sessionStorage.removeItem('dash_fecha');
+  SESION=null;
+  document.getElementById('screen-dash').classList.remove('on');
+  document.getElementById('screen-login').style.display='flex';
+  document.getElementById('lg-user').value=''; document.getElementById('lg-pass').value='';
+}
+
+// ════════════════════════════════════════════════════════
+// INICIO DASH
+// ════════════════════════════════════════════════════════
+function iniciarDash() {
+  document.getElementById('screen-login').style.display='none';
+  document.getElementById('screen-dash').classList.add('on');
+  document.getElementById('tb-av').textContent = SESION.nombre.split(' ').map(function(w){return w[0];}).join('').slice(0,2);
+  document.getElementById('tb-name').textContent = SESION.nombre;
+  var subTxt = SESION.user + ' · ' + (SESION.role==='jefe' ? 'Jefe de Canal · Vista Nacional' : 'Supervisor ' + SESION.zona);
+  document.getElementById('tb-sub').textContent = subTxt;
+  document.getElementById('tb-fecha').textContent = fmtFecha(FECHA);
+
+  renderTabs();
+  cargarData();
+}
+
+function renderTabs() {
+  var html = '';
+  TABS_CONFIG.forEach(function(t){
+    html += '<button class="tab'+(t.id===TAB_ACTUAL?' on':'')+'" onclick="setTab(\''+t.id+'\')"><span>'+t.ico+'</span>'+t.lbl+'</button>';
+  });
+  document.getElementById('tabs').innerHTML = html;
+}
+
+function setTab(t){
+  TAB_ACTUAL = t;
+  renderTabs();
+  renderContent();
+}
+
+function cambiarFecha() {
+  var nueva = prompt('Cambiar a fecha (YYYY-MM-DD):', FECHA);
+  if (!nueva || !/^\d{4}-\d{2}-\d{2}$/.test(nueva)) return;
+  if (nueva > hoy()) { alert('No se permite fecha futura'); return; }
+  FECHA = nueva;
+  sessionStorage.setItem('dash_fecha', FECHA);
+  document.getElementById('tb-fecha').textContent = fmtFecha(FECHA);
+  cargarData();
+}
+function recargar(){ cargarData(); }
+
+// ════════════════════════════════════════════════════════
+// CONEXION CON EL GAS REAL
+// ════════════════════════════════════════════════════════
+var SCRIPT_URL = ''; // Se asigna al loguearse o desde localStorage
+var MODO_DATOS = 'DEMO'; // 'REAL' o 'DEMO'
+
+function getScriptURL() {
+  // Prioridad: variable global > localStorage
+  if (SCRIPT_URL && SCRIPT_URL !== 'TU_SCRIPT_URL_AQUI') return SCRIPT_URL;
+  var saved = localStorage.getItem('dash_script_url');
+  if (saved && saved !== 'TU_SCRIPT_URL_AQUI') { SCRIPT_URL = saved; return saved; }
+  return '';
+}
+
+function setScriptURL(url) {
+  SCRIPT_URL = url || '';
+  if (url) localStorage.setItem('dash_script_url', url);
+  else localStorage.removeItem('dash_script_url');
+}
+
+// Llamar al GAS mediante GET (JSONP-style con query params)
+function gasGetReal(params, callback) {
+  var url = getScriptURL();
+  if (!url) { callback(null); return; }
+  var qs = Object.keys(params).map(function(k) {
+    return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
+  }).join('&');
+  var fullUrl = url + '?' + qs;
+
+  // Usar fetch con timeout
+  var ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+  var timer = setTimeout(function() { if (ctrl) ctrl.abort(); }, 20000);
+
+  fetch(fullUrl, { method: 'GET', signal: ctrl ? ctrl.signal : undefined })
+    .then(function(r) {
+      clearTimeout(timer);
+      return r.json();
+    })
+    .then(function(data) { callback(data); })
+    .catch(function(e) {
+      clearTimeout(timer);
+      console.error('Error GAS:', e);
+      callback(null);
+    });
+}
+
+// Convertir filas crudas del Sheets a formato DATA del dashboard
+function convertirFilasGAS(filas) {
+  if (!filas || !filas.length) return [];
+  // Agrupar por ID
+  var porId = {};
+  filas.forEach(function(f) {
+    // CAB_REG: [ID, Accion, Fecha, Hora, Usuario, Distribuidora, Mesa, Vendedor,
+    //  PDV, RUC, Direccion, Distrito, Provincia, Departamento, Giro, Sub-Giro,
+    //  RealizoPedido, EAN, Producto, Marca, Cantidad, UM, PrecioUnit, Subtotal,
+    //  Total, CausalNoVenta, DetalleCausal, Observaciones]
+    var id = String(f[0] || '').trim();
+    if (!id || id.length < 8) return; // ignorar filas con ID inválido
+
+    if (!porId[id]) {
+      porId[id] = {
+        id: id,
+        fecha: String(f[2] || '').trim(),
+        hora: String(f[3] || '').trim(),
+        usuario: String(f[4] || '').trim(),
+        dist: String(f[5] || '').trim(),
+        pdv: String(f[8] || '').trim(),
+        distrito: String(f[11] || '').trim().toUpperCase(),
+        provincia: String(f[12] || '').trim().toUpperCase(),
+        departamento: String(f[13] || '').trim().toUpperCase(),
+        modo: String(f[16] || '').toUpperCase().indexOf('SI') >= 0 ? 'SI' : 'NO',
+        pedido: [],
+        total: 0,
+        causal: String(f[25] || '').trim().toUpperCase(),
+        causalDet: String(f[26] || '').trim()
+      };
+    }
+
+    var rec = porId[id];
+
+    // Si tiene EAN (col 17), es un SKU del pedido
+    var ean = String(f[17] || '').trim();
+    if (ean) {
+      var qty = parseFloat(f[20]) || 0;
+      var price = parseFloat(f[22]) || 0;
+      rec.pedido.push({
+        ean: ean,
+        nm: String(f[18] || '').trim(),
+        mc: String(f[19] || '').trim(),
+        qty: qty,
+        price: price
+      });
+      // Recalcular total a partir de subtotales (cualquier fila del relevo tiene Total)
+      var t = parseFloat(f[24]) || 0;
+      if (t > rec.total) rec.total = t;
+    }
+  });
+
+  return Object.values(porId);
+}
+
+// ════════════════════════════════════════════════════════
+// CARGAR DATOS (real o demo según configuración)
+// ════════════════════════════════════════════════════════
+function cargarData() {
+  document.getElementById('content').innerHTML = '<div class="loading"><div class="spinner"></div>Cargando datos desde Google Sheets...</div>';
+
+  var url = getScriptURL();
+  if (!url) {
+    // No hay URL configurada → usar demo
+    MODO_DATOS = 'DEMO';
+    actualizarBannerModo();
+    setTimeout(function() {
+      DATA = generarDataDemo(FECHA);
+      EXPANDED_SUPS = {}; EXPANDED_PROMS = {};
+      renderFiltros();
+      renderContent();
+    }, 300);
+    return;
+  }
+
+  // Determinar promotoras a consultar según rol del usuario
+  var proms;
+  if (SESION.role === 'jefe') {
+    proms = TODOS_PROMS.slice(); // todas
+  } else {
+    proms = SUP_MAP[SESION.user] || [];
+  }
+
+  if (!proms.length) {
+    MODO_DATOS = 'REAL';
+    actualizarBannerModo();
+    DATA = [];
+    EXPANDED_SUPS = {}; EXPANDED_PROMS = {};
+    renderFiltros();
+    renderContent();
+    return;
+  }
+
+  gasGetReal({
+    accion: 'listar_equipo',
+    promotoras: proms.join(','),
+    fecha: FECHA
+  }, function(resp) {
+    if (resp && resp.status === 'ok' && resp.filas) {
+      MODO_DATOS = 'REAL';
+      DATA = convertirFilasGAS(resp.filas);
+    } else {
+      // Si hubo error, mostrar mensaje pero seguir con array vacío
+      MODO_DATOS = 'REAL';
+      DATA = [];
+      console.error('Error al cargar del GAS:', resp);
+    }
+    actualizarBannerModo();
+    EXPANDED_SUPS = {}; EXPANDED_PROMS = {};
+    renderFiltros();
+    renderContent();
+  });
+}
+
+// Actualizar el banner según el modo
+function actualizarBannerModo() {
+  var banner = document.querySelector('.demo-banner');
+  if (!banner) return;
+  if (MODO_DATOS === 'REAL') {
+    banner.style.background = 'linear-gradient(135deg, #D1FAE5, #A7F3D0)';
+    banner.style.borderBottom = '1px solid #6EE7B7';
+    banner.style.color = '#065F46';
+    banner.innerHTML = '✅ DATOS EN VIVO — Conectado al Google Sheets · <a href="#" onclick="abrirConfigURL();return false;" style="color:#047857;text-decoration:underline;font-weight:600">Cambiar configuración</a>';
+  } else {
+    banner.style.background = 'linear-gradient(135deg, #FEF3C7, #FDE68A)';
+    banner.style.borderBottom = '1px solid #FCD34D';
+    banner.style.color = '#92400E';
+    banner.innerHTML = '⚠️ DATOS DE DEMOSTRACIÓN — <a href="#" onclick="abrirConfigURL();return false;" style="color:#92400E;text-decoration:underline;font-weight:600">Conectar al GAS real</a>';
+  }
+}
+
+function abrirConfigURL() {
+  var actual = getScriptURL();
+  var nueva = prompt(
+    'Pega la URL de tu Google Apps Script (la misma que usas en config.js del app S2S Point):\n\n' +
+    'Debe terminar en /exec\n\n' +
+    'Deja vacío y presiona OK para volver al modo DEMO.',
+    actual || ''
+  );
+  if (nueva === null) return; // canceló
+  nueva = String(nueva).trim();
+  if (nueva && !/^https:\/\/script\.google\.com\/.+\/exec$/.test(nueva)) {
+    if (!confirm('La URL no tiene el formato esperado de Google Apps Script (debe ser https://script.google.com/.../exec). ¿Guardar de todos modos?')) return;
+  }
+  setScriptURL(nueva);
+  alert(nueva ? '✓ URL guardada. Recargando datos del GAS...' : '✓ Volviendo al modo DEMO.');
+  cargarData();
+}
+
+
+// ════════════════════════════════════════════════════════
+// FILTROS
+// ════════════════════════════════════════════════════════
+function renderFiltros() {
+  var data = dataPorRol();
+  var fc = document.getElementById('filters');
+  var html = '';
+
+  // Supervisor (solo si es jefe)
+  if (SESION.role === 'jefe') {
+    var sups = Object.keys(SUP_MAP);
+    html += filtroSelect('supervisor', 'Supervisor', sups.map(function(s){
+      return {val:s, txt:s+' · '+USERS[s].nombre};
+    }));
+  }
+
+  // Promotora (filtrada por supervisor seleccionado o por rol)
+  var promsDisponibles;
+  if (FILTROS.supervisor && SUP_MAP[FILTROS.supervisor]) {
+    promsDisponibles = SUP_MAP[FILTROS.supervisor];
+  } else if (SESION.role === 'sup') {
+    promsDisponibles = SUP_MAP[SESION.user] || [];
+  } else {
+    promsDisponibles = TODOS_PROMS;
+  }
+  html += filtroSelect('promotora', 'Promotora', promsDisponibles.map(function(p){return {val:p, txt:p};}));
+
+  // Geográficos (basados en data disponible)
+  var dpts = {}, provs = {}, dists = {};
+  data.forEach(function(r){
+    if (!r.departamento) return;
+    dpts[r.departamento] = true;
+    if (!FILTROS.departamento || FILTROS.departamento === r.departamento) {
+      provs[r.provincia] = true;
+      if (!FILTROS.provincia || FILTROS.provincia === r.provincia) {
+        dists[r.distrito] = true;
+      }
+    }
+  });
+
+  html += filtroSelect('departamento', 'Departamento', Object.keys(dpts).sort().map(function(d){return {val:d, txt:d};}));
+  html += filtroSelect('provincia', 'Provincia', Object.keys(provs).sort().map(function(d){return {val:d, txt:d};}));
+  html += filtroSelect('distrito', 'Distrito', Object.keys(dists).sort().map(function(d){return {val:d, txt:d};}));
+
+  // Botón limpiar
+  var algunActivo = Object.keys(FILTROS).some(function(k){return FILTROS[k];});
+  if (algunActivo) {
+    html += '<div class="filt-grp"><div class="filt-lbl">&nbsp;</div><button class="btn-clear" onclick="limpiarFiltros()">✕ Limpiar filtros</button></div>';
+  }
+
+  fc.innerHTML = html;
+}
+
+function filtroSelect(key, lbl, opts) {
+  var active = !!FILTROS[key];
+  var html = '<div class="filt-grp"><div class="filt-lbl">'+lbl+'</div>';
+  html += '<select class="filt-sel'+(active?' active':'')+'" onchange="setFiltro(\''+key+'\',this.value)">';
+  html += '<option value="">Todos</option>';
+  opts.forEach(function(o){
+    html += '<option value="'+o.val+'"'+(FILTROS[key]===o.val?' selected':'')+'>'+o.txt+'</option>';
+  });
+  html += '</select></div>';
+  return html;
+}
+
+function setFiltro(key, val) {
+  FILTROS[key] = val;
+  // Si cambia supervisor, resetear promotora; si cambia depto, resetear prov/dist
+  if (key === 'supervisor') FILTROS.promotora = '';
+  if (key === 'departamento') { FILTROS.provincia = ''; FILTROS.distrito = ''; }
+  if (key === 'provincia') FILTROS.distrito = '';
+  renderFiltros();
+  renderContent();
+}
+
+function limpiarFiltros() {
+  FILTROS = { supervisor:"", promotora:"", departamento:"", provincia:"", distrito:"" };
+  renderFiltros();
+  renderContent();
+}
+
+// ════════════════════════════════════════════════════════
+// FILTRADO DE DATA
+// ════════════════════════════════════════════════════════
+function dataPorRol() {
+  if (SESION.role === 'jefe') return DATA;
+  var proms = SUP_MAP[SESION.user] || [];
+  return DATA.filter(function(r){ return proms.indexOf(r.usuario) >= 0; });
+}
+
+function dataFiltrada() {
+  var data = dataPorRol();
+  if (FILTROS.supervisor) {
+    var proms = SUP_MAP[FILTROS.supervisor] || [];
+    data = data.filter(function(r){ return proms.indexOf(r.usuario) >= 0; });
+  }
+  if (FILTROS.promotora) data = data.filter(function(r){ return r.usuario === FILTROS.promotora; });
+  if (FILTROS.departamento) data = data.filter(function(r){ return r.departamento === FILTROS.departamento; });
+  if (FILTROS.provincia) data = data.filter(function(r){ return r.provincia === FILTROS.provincia; });
+  if (FILTROS.distrito) data = data.filter(function(r){ return r.distrito === FILTROS.distrito; });
+  return data;
+}
+
+// ════════════════════════════════════════════════════════
+// MÉTRICAS
+// ════════════════════════════════════════════════════════
+function calcMetricas(data) {
+  var visitas = {};
+  data.forEach(function(r){ visitas[r.id] = r; });
+  var arr = Object.values(visitas);
+  var vis = arr.length;
+  var cv = arr.filter(function(r){return r.modo==='SI';}).length;
+  var sv = vis - cv;
+  var ext = arr.filter(function(r){
+    if(r.modo!=='NO') return false;
+    return CAUSALES_INFO[r.causal] && CAUSALES_INFO[r.causal].tipo === 'externa';
+  }).length;
+  var neto = vis - ext;
+  var tot = arr.reduce(function(a,r){return a+(r.total||0);},0);
+  var ef = neto>0 ? Math.round(cv/neto*100) : 0;
+  var ticket = cv>0 ? tot/cv : 0;
+  var skusSet = {};
+  arr.forEach(function(r){ if(r.pedido) r.pedido.forEach(function(p){skusSet[p.ean]=true;}); });
+  return {vis:vis, cv:cv, sv:sv, ext:ext, neto:neto, tot:tot, ef:ef, ticket:ticket, skusAct:Object.keys(skusSet).length};
+}
+
+function metricasPromotora(data, prom) {
+  var d = data.filter(function(r){return r.usuario === prom;});
+  var m = calcMetricas(d);
+  var visitasIds = {};
+  d.forEach(function(r){
+    if(!visitasIds[r.id]) visitasIds[r.id] = {id:r.id, hora:r.hora, pdv:r.pdv, distrito:r.distrito, modo:r.modo, total:0, pedido:[], causal:r.causal, causalDet:r.causalDet};
+    if(r.modo==='SI') {
+      visitasIds[r.id].total = r.total;
+      if(r.pedido) visitasIds[r.id].pedido = r.pedido;
+    }
+  });
+  m.visitas = Object.values(visitasIds).sort(function(a,b){return a.hora.localeCompare(b.hora);});
+  m.dist = d.length ? d[0].dist : '—';
+  return m;
+}
+
+function metricasSupervisor(data, sup) {
+  var proms = SUP_MAP[sup] || [];
+  var dataSup = data.filter(function(r){return proms.indexOf(r.usuario) >= 0;});
+  var m = calcMetricas(dataSup);
+  m.promotoras = proms.map(function(p){ return Object.assign({nombre:p}, metricasPromotora(data, p)); });
+  return m;
+}
+
+// ════════════════════════════════════════════════════════
+// RENDER CONTENT
+// ════════════════════════════════════════════════════════
+function renderContent() {
+  if (TAB_ACTUAL === 'resumen') renderResumen();
+  else if (TAB_ACTUAL === 'causales') renderCausales();
+  else if (TAB_ACTUAL === 'productos') renderProductos();
+  else if (TAB_ACTUAL === 'geo') renderGeo();
+  else if (TAB_ACTUAL === 'conclusiones') renderConclusiones();
+}
+
+// ════════════════════════════════════════════════════════
+// TAB: RESUMEN
+// ════════════════════════════════════════════════════════
+function renderResumen() {
+  var data = dataFiltrada();
+  var m = calcMetricas(data);
+
+  var html = '';
+
+  // Hero con storytelling
+  html += '<div class="hero">';
+  html += '<div class="hero-lbl">📈 Resumen ejecutivo del día · ' + fmtFecha(FECHA) + '</div>';
+  html += '<div class="hero-amount">S/ ' + fmt(m.tot) + '</div>';
+  html += '<div class="hero-narr">' + buildNarrativa(m, data) + '</div>';
+  html += '</div>';
+
+  // KPIs
+  html += '<div class="kpis">';
+  html += kpiCard('PDVs visitados', fmtN(m.vis));
+  html += kpiCard('Con venta', fmtN(m.cv), 'g');
+  html += kpiCard('Efectividad', m.ef + '%');
+  html += kpiCard('Ticket promedio', 'S/ ' + fmt(m.ticket));
+  html += kpiCard('SKUs activados', m.skusAct);
+  html += '</div>';
+
+  // Menciones ejecutivas
+  var menciones = buildMencionesEjecutivas(data);
+  if (menciones.length > 0) {
+    html += '<div class="sec">';
+    html += '<div class="sec-hdr"><div class="sec-ttl"><div class="sec-ttl-ico">🏆</div>Menciones ejecutivas</div></div>';
+    html += '<div class="mentions">';
+    menciones.forEach(function(m){
+      html += '<div class="mention '+m.tipo+'">';
+      html += '<div class="mention-lbl">'+m.lbl+'</div>';
+      html += '<div class="mention-name">'+m.nm+'</div>';
+      html += '<div class="mention-txt">'+m.txt+'</div>';
+      html += '</div>';
+    });
+    html += '</div></div>';
+  }
+
+  // Tabla principal - depende del rol
+  html += '<div class="sec">';
+  html += '<div class="sec-hdr"><div class="sec-ttl"><div class="sec-ttl-ico">👥</div>'+
+    (SESION.role==='jefe' && !FILTROS.supervisor ? 'Performance por supervisor (clic para ver promotoras)' : 'Equipo de promotoras (clic para ver detalle de visitas)')+
+    '</div></div>';
+
+  if (SESION.role === 'jefe' && !FILTROS.supervisor && !FILTROS.promotora) {
+    html += renderTablaSupervisoresExpandible(data);
+  } else {
+    html += renderTablaPromotorasExpandible(data);
+  }
+
+  html += '</div>';
+  document.getElementById('content').innerHTML = html;
+}
+
+function buildNarrativa(m, data) {
+  if (m.vis === 0) return 'No hay registros aún para esta fecha y filtros seleccionados.';
+
+  // Quién es el top
+  var por = {};
+  var proms = SESION.role==='jefe' ? TODOS_PROMS : (SUP_MAP[SESION.user]||[]);
+  proms.forEach(function(p){ por[p] = metricasPromotora(data, p); });
+  var topProm = '', maxTot = 0;
+  var sinIniciar = [];
+  Object.keys(por).forEach(function(p){
+    if (por[p].tot > maxTot) { maxTot = por[p].tot; topProm = p; }
+    if (por[p].vis === 0) sinIniciar.push(p);
+  });
+
+  // Causal top
+  var causalCount = {};
+  data.forEach(function(r){if(r.modo==='NO'&&r.causal)causalCount[r.causal]=(causalCount[r.causal]||0)+1;});
+  var causalKeys = Object.keys(causalCount).sort(function(a,b){return causalCount[b]-causalCount[a];});
+
+  var partes = [
+    (SESION.role==='jefe'?'El equipo nacional':'Tu equipo') + ' logró <strong>S/ '+fmt(m.tot)+'</strong> en '+m.vis+' visitas con <strong>'+m.ef+'% de efectividad</strong>.'
+  ];
+  if (topProm && m.tot > 0) partes.push('<strong>'+topProm+'</strong> lidera el ranking con S/ '+fmt(por[topProm].tot)+'.');
+  if (sinIniciar.length > 0 && !FILTROS.promotora) partes.push('<strong>'+sinIniciar.length+' promotora(s)</strong> aún sin iniciar registros.');
+  if (causalKeys.length > 0) partes.push('Causal predominante: <strong>'+causalKeys[0]+'</strong> ('+causalCount[causalKeys[0]]+' veces).');
+
+  return partes.join(' ');
+}
+
+function buildMencionesEjecutivas(data) {
+  var mns = [];
+  var por = {};
+  var proms = SESION.role==='jefe' ? TODOS_PROMS : (SUP_MAP[SESION.user]||[]);
+  proms.forEach(function(p){ por[p] = metricasPromotora(data, p); });
+
+  // Top efectividad
+  var topEf = null, maxEf = -1;
+  Object.keys(por).forEach(function(p){
+    if (por[p].vis > 5 && por[p].ef > maxEf) { maxEf = por[p].ef; topEf = p; }
+  });
+  if (topEf) mns.push({tipo:'top', lbl:'🏆 TOP EFECTIVIDAD', nm:topEf, txt:'Mejor conversión del equipo: '+maxEf+'% — referente a felicitar y replicar buenas prácticas.'});
+
+  // Mayor cobertura
+  var topVis = null, maxVis = 0;
+  Object.keys(por).forEach(function(p){ if(por[p].vis > maxVis){maxVis=por[p].vis;topVis=p;} });
+  if (topVis && topVis !== topEf) mns.push({tipo:'up', lbl:'📈 MAYOR COBERTURA', nm:topVis, txt:maxVis+' PDVs visitados — destacar el esfuerzo de ruta.'});
+
+  // Sin iniciar
+  var sinIni = Object.keys(por).filter(function(p){return por[p].vis===0;});
+  if (sinIni.length > 0) mns.push({tipo:'warn', lbl:'⚠ REQUIERE ATENCIÓN', nm:sinIni.join(', '), txt:'Sin registros del día — contactar inmediatamente para validar estado de ruta.'});
+
+  // Causal externa más alta (señal a accionar)
+  var sinV = data.filter(function(r){return r.modo==='NO';});
+  if (sinV.length > 5) {
+    var causalCount = {};
+    sinV.forEach(function(r){if(r.causal)causalCount[r.causal]=(causalCount[r.causal]||0)+1;});
+    var topC = Object.keys(causalCount).sort(function(a,b){return causalCount[b]-causalCount[a];})[0];
+    if (topC && CAUSALES_INFO[topC] && CAUSALES_INFO[topC].tipo === 'interna') {
+      mns.push({tipo:'exec', lbl:'🎯 ACCIÓN EJECUTIVA', nm:topC, txt:'Causa interna recurrente ('+causalCount[topC]+' veces) — coordinar con distribuidor y comercial.'});
+    }
+  }
+
+  return mns;
+}
+
+function kpiCard(lbl, val, color) {
+  var style = color === 'g' ? ' style="color:var(--green)"' : '';
+  return '<div class="kpi"><div class="kpi-lbl">'+lbl+'</div><div class="kpi-val num"'+style+'>'+val+'</div></div>';
+}
+
+// ── TABLA SUPERVISORES EXPANDIBLE (vista jefe) ─────────
+function renderTablaSupervisoresExpandible(data) {
+  var html = '<table class="tbl"><thead><tr>';
+  html += '<th style="min-width:200px">Supervisor</th><th>Zona</th><th class="r">Proms</th><th class="r">Visitas</th><th class="r">C/Venta</th><th class="r">Efect.</th><th class="r">Total S/</th>';
+  html += '</tr></thead><tbody>';
+
+  var sups = Object.keys(SUP_MAP);
+  var supMet = sups.map(function(s){return {sup:s, m:metricasSupervisor(data, s)};});
+  supMet.sort(function(a,b){return b.m.tot - a.m.tot;});
+
+  supMet.forEach(function(item, idx) {
+    var sup = item.sup; var m = item.m;
+    var medal = idx===0 && m.tot>0 ? ' 🥇' : (idx===1 && m.tot>0 ? ' 🥈' : '');
+    var efCol = m.ef>=65?'var(--green)':(m.ef>=50?'var(--amber)':'var(--red)');
+    var expanded = EXPANDED_SUPS[sup];
+
+    html += '<tr class="row-sup" onclick="toggleSup(\''+sup+'\')">';
+    html += '<td><span class="exp-icon'+(expanded?' open':'')+'">▶</span><strong>'+sup+'</strong> · '+USERS[sup].nombre+medal+'</td>';
+    html += '<td style="color:var(--t2)">'+USERS[sup].zona+'</td>';
+    html += '<td class="r num">'+m.promotoras.length+'</td>';
+    html += '<td class="r num">'+m.vis+'</td>';
+    html += '<td class="r num" style="color:var(--green)">'+m.cv+'</td>';
+    html += '<td class="r num" style="color:'+efCol+'"><strong>'+m.ef+'%</strong></td>';
+    html += '<td class="r num"><strong>S/ '+fmt(m.tot)+'</strong></td>';
+    html += '</tr>';
+
+    if (expanded) {
+      m.promotoras.forEach(function(pm){
+        var pEfCol = pm.ef>=65?'var(--green)':(pm.ef>=50?'var(--amber)':'var(--red)');
+        var estado = pm.vis === 0 ? 'SIN INICIAR' : 'EN OPERACIÓN';
+        var bdg = pm.vis === 0 ? 'r' : 'g';
+        var pExp = EXPANDED_PROMS[pm.nombre];
+
+        html += '<tr class="row-prom" onclick="togglePromInTable(\''+pm.nombre+'\')">';
+        html += '<td><span class="exp-icon'+(pExp?' open':'')+'">▶</span>'+pm.nombre+'</td>';
+        html += '<td style="color:var(--t2);font-size:11px">'+pm.dist+'</td>';
+        html += '<td class="r"><span class="bdg bdg-'+bdg+'">'+estado+'</span></td>';
+        html += '<td class="r num">'+pm.vis+'</td>';
+        html += '<td class="r num" style="color:var(--green)">'+pm.cv+'</td>';
+        html += '<td class="r num" style="color:'+pEfCol+'">'+(pm.vis>0?pm.ef+'%':'—')+'</td>';
+        html += '<td class="r num">S/ '+fmt(pm.tot)+'</td>';
+        html += '</tr>';
+
+        if (pExp && pm.visitas.length > 0) {
+          html += '<tr class="row-detail"><td colspan="7">';
+          html += renderDetalleVisitas(pm.visitas, pm.nombre);
+          html += '</td></tr>';
+        }
+      });
+    }
+  });
+
+  html += '</tbody></table>';
+  return html;
+}
+
+// ── TABLA PROMOTORAS EXPANDIBLE (vista supervisor) ─────
+function renderTablaPromotorasExpandible(data) {
+  var proms;
+  if (FILTROS.promotora) proms = [FILTROS.promotora];
+  else if (FILTROS.supervisor) proms = SUP_MAP[FILTROS.supervisor] || [];
+  else if (SESION.role === 'jefe') proms = TODOS_PROMS;
+  else proms = SUP_MAP[SESION.user] || [];
+
+  var html = '<table class="tbl"><thead><tr>';
+  html += '<th>Promotora</th><th>Distribuidora</th><th class="r">Estado</th><th class="r">Visitas</th><th class="r">C/Venta</th><th class="r">Efect.</th><th class="r">Total S/</th>';
+  html += '</tr></thead><tbody>';
+
+  var pData = proms.map(function(p){return {nombre:p, m:metricasPromotora(data, p)};});
+  pData.sort(function(a,b){return b.m.tot - a.m.tot;});
+
+  pData.forEach(function(item, idx){
+    var pm = item.m; var prom = item.nombre;
+    var medal = idx===0 && pm.tot>0 ? ' 🥇' : (idx===1 && pm.tot>0 ? ' 🥈' : (idx===2 && pm.tot>0 ? ' 🥉' : ''));
+    var efCol = pm.ef>=65?'var(--green)':(pm.ef>=50?'var(--amber)':'var(--red)');
+    var estado = pm.vis === 0 ? 'SIN INICIAR' : 'EN OPERACIÓN';
+    var bdg = pm.vis === 0 ? 'r' : 'g';
+    var expanded = EXPANDED_PROMS[prom];
+
+    html += '<tr class="row-sup" onclick="togglePromInTable(\''+prom+'\')">';
+    html += '<td><span class="exp-icon'+(expanded?' open':'')+'">▶</span><strong>'+prom+'</strong>'+medal+'</td>';
+    html += '<td style="color:var(--t2);font-size:11px">'+pm.dist+'</td>';
+    html += '<td class="r"><span class="bdg bdg-'+bdg+'">'+estado+'</span></td>';
+    html += '<td class="r num">'+pm.vis+'</td>';
+    html += '<td class="r num" style="color:var(--green)">'+pm.cv+'</td>';
+    html += '<td class="r num" style="color:'+efCol+'"><strong>'+(pm.vis>0?pm.ef+'%':'—')+'</strong></td>';
+    html += '<td class="r num"><strong>S/ '+fmt(pm.tot)+'</strong></td>';
+    html += '</tr>';
+
+    if (expanded && pm.visitas.length > 0) {
+      html += '<tr class="row-detail"><td colspan="7">';
+      html += renderDetalleVisitas(pm.visitas, prom);
+      html += '</td></tr>';
+    }
+  });
+
+  html += '</tbody></table>';
+  return html;
+}
+
+function renderDetalleVisitas(visitas, prom) {
+  var html = '<div class="detail-wrap">';
+  html += '<div class="detail-ttl">📋 Detalle de visitas — '+prom+' ('+visitas.length+' clientes)</div>';
+  html += '<table class="tbl" style="background:#fff;border-radius:8px;border:.5px solid var(--border)">';
+  html += '<thead><tr><th style="font-size:10px">HORA</th><th style="font-size:10px">CLIENTE / PDV</th><th style="font-size:10px">DISTRITO</th><th class="c" style="font-size:10px">RESULTADO</th><th style="font-size:10px">DETALLE</th><th class="r" style="font-size:10px">VENTA</th></tr></thead>';
+  html += '<tbody>';
+  visitas.forEach(function(v){
+    html += '<tr>';
+    html += '<td style="font-size:11px">'+v.hora+'</td>';
+    html += '<td style="font-size:11px"><strong>'+v.pdv+'</strong></td>';
+    html += '<td style="font-size:11px;color:var(--t2)">'+v.distrito+'</td>';
+    if (v.modo === 'SI') {
+      html += '<td class="c"><span class="bdg bdg-g">VENTA</span></td>';
+      var skuList = '';
+      v.pedido.forEach(function(p){
+        skuList += '<div class="det-sku">• <strong>'+p.nm+'</strong> — '+p.qty+' UND × S/ '+fmt(p.price)+' = <strong>S/ '+fmt(p.qty*p.price)+'</strong></div>';
+      });
+      html += '<td>'+skuList+'</td>';
+      html += '<td class="r num"><strong>S/ '+fmt(v.total)+'</strong></td>';
+    } else {
+      html += '<td class="c"><span class="bdg bdg-a">SIN VENTA</span></td>';
+      var icoCau = (CAUSALES_INFO[v.causal] && CAUSALES_INFO[v.causal].icono) || '⚠️';
+      var detTxt = '<div style="font-size:11px;color:var(--red);font-weight:600">'+icoCau+' '+(v.causal||'—')+'</div>';
+      if (v.causalDet) detTxt += '<div class="det-mini" style="margin-top:3px">'+v.causalDet+'</div>';
+      html += '<td>'+detTxt+'</td>';
+      html += '<td class="r" style="color:var(--t3)">—</td>';
+    }
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+  return html;
+}
+
+function toggleSup(sup) {
+  EXPANDED_SUPS[sup] = !EXPANDED_SUPS[sup];
+  renderContent();
+}
+function togglePromInTable(prom) {
+  EXPANDED_PROMS[prom] = !EXPANDED_PROMS[prom];
+  renderContent();
+}
+
+// ════════════════════════════════════════════════════════
+// TAB: CAUSALES (analisis ejecutivo profundo)
+// ════════════════════════════════════════════════════════
+function renderCausales() {
+  var data = dataFiltrada();
+  var sinV = data.filter(function(r){return r.modo==='NO';});
+
+  // Agrupar por causal con todos sus items
+  var causalMap = {};
+  sinV.forEach(function(r){
+    if(!r.causal) return;
+    if(!causalMap[r.causal]) causalMap[r.causal] = {count:0, items:[], promotoras:{}, distritos:{}};
+    causalMap[r.causal].count++;
+    causalMap[r.causal].items.push(r);
+    causalMap[r.causal].promotoras[r.usuario] = (causalMap[r.causal].promotoras[r.usuario]||0)+1;
+    causalMap[r.causal].distritos[r.distrito] = (causalMap[r.causal].distritos[r.distrito]||0)+1;
+  });
+  var causales = Object.keys(causalMap).sort(function(a,b){return causalMap[b].count - causalMap[a].count;});
+
+  // KPIs
+  var nInt = sinV.filter(function(r){return CAUSALES_INFO[r.causal] && CAUSALES_INFO[r.causal].tipo === 'interna';}).length;
+  var nExt = sinV.length - nInt;
+  var pctInt = sinV.length>0?Math.round(nInt/sinV.length*100):0;
+
+  var html = '';
+
+  // Insight
+  if (causales.length > 0) {
+    html += '<div class="insight">';
+    html += '<div class="insight-lbl">💡 INSIGHT EJECUTIVO DEL DÍA</div>';
+    html += '<div class="insight-txt">';
+    html += 'Se registraron <strong>'+sinV.length+' no-ventas</strong>. <strong>'+pctInt+'%</strong> son causales INTERNAS (accionables: stock, precio, margen, calidad) y <strong>'+(100-pctInt)+'%</strong> son EXTERNAS (no controlables: cerrado, sin efectivo). ';
+    if (causales.length > 0) html += 'La barrera principal es <strong>'+causales[0]+'</strong> con '+causalMap[causales[0]].count+' incidencias.';
+    html += '</div></div>';
+  }
+
+  html += '<div class="kpis">';
+  html += kpiCard('Total no-ventas', fmtN(sinV.length));
+  html += kpiCard('Causales INTERNAS', fmtN(nInt)+' ('+pctInt+'%)');
+  html += kpiCard('Causales EXTERNAS', fmtN(nExt)+' ('+(100-pctInt)+'%)');
+  html += kpiCard('Causales únicas', causales.length);
+  html += '</div>';
+
+  // Ranking visual
+  html += '<div class="g2">';
+  html += '<div class="sec">';
+  html += '<div class="sec-hdr"><div class="sec-ttl"><div class="sec-ttl-ico">📊</div>Ranking de causales</div></div>';
+  if (causales.length === 0) {
+    html += '<div class="empty">Sin causales registradas</div>';
+  } else {
+    var maxC = causalMap[causales[0]].count;
+    causales.forEach(function(c){
+      var d = causalMap[c];
+      var pct = Math.round(d.count/maxC*100);
+      var color = CAUSALES_INFO[c] && CAUSALES_INFO[c].tipo === 'interna' ? 'var(--red)' : 'var(--amber)';
+      var ico = (CAUSALES_INFO[c] && CAUSALES_INFO[c].icono) || '';
+      html += '<div class="cau-row">';
+      html += '<div class="cau-row-top"><span>'+ico+' '+c+'</span><strong>'+d.count+'</strong></div>';
+      html += '<div class="cau-bar"><div class="cau-bar-fill" style="width:'+pct+'%;background:'+color+'"></div></div>';
+      html += '</div>';
+    });
+  }
+  html += '</div>';
+
+  // Donut int vs ext
+  html += '<div class="sec">';
+  html += '<div class="sec-hdr"><div class="sec-ttl"><div class="sec-ttl-ico">⚖️</div>Internas vs Externas</div></div>';
+  html += '<div style="display:flex;align-items:center;gap:18px;padding:14px 0">';
+  html += '<svg viewBox="0 0 36 36" style="width:130px;height:130px">';
+  html += '<circle cx="18" cy="18" r="16" fill="none" stroke="var(--amber-l)" stroke-width="4"/>';
+  html += '<circle cx="18" cy="18" r="16" fill="none" stroke="var(--red)" stroke-width="4" stroke-dasharray="'+pctInt+' 100" stroke-dashoffset="25" transform="rotate(-90 18 18)"/>';
+  html += '<text x="18" y="20" text-anchor="middle" font-size="6" font-weight="700" fill="var(--text)">'+pctInt+'%</text>';
+  html += '</svg>';
+  html += '<div style="font-size:13px;flex:1">';
+  html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="width:14px;height:14px;background:var(--red);border-radius:3px"></span><strong>Internas:</strong> '+nInt+' ('+pctInt+'%)</div>';
+  html += '<div style="font-size:11px;color:var(--t2);margin-bottom:12px;padding-left:22px">Accionables: stock, precio, margen, calidad, distribuidor sin stock</div>';
+  html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="width:14px;height:14px;background:var(--amber);border-radius:3px"></span><strong>Externas:</strong> '+nExt+' ('+(100-pctInt)+'%)</div>';
+  html += '<div style="font-size:11px;color:var(--t2);padding-left:22px">No controlables: cerrado, sin efectivo, sin dueño, ya visitado</div>';
+  html += '</div></div></div>';
+  html += '</div>';
+
+  // Drill down de cada causal - ANALISIS EJECUTIVO PROFUNDO
+  html += '<div class="sec-hdr" style="margin:24px 0 14px"><div class="sec-ttl"><div class="sec-ttl-ico">🔬</div>Análisis ejecutivo por causal</div></div>';
+
+  causales.forEach(function(c){
+    var d = causalMap[c];
+    var info = CAUSALES_INFO[c] || {tipo:'externa', preguntas:[], icono:'⚠️'};
+
+    html += '<div class="cau-card">';
+    html += '<div class="cau-card-hdr">';
+    html += '<div><span style="font-size:18px">'+info.icono+'</span> <strong class="cau-card-ttl">'+c+'</strong></div>';
+    html += '<div><span class="bdg bdg-'+(info.tipo==='interna'?'r':'a')+'" style="margin-right:8px">'+info.tipo.toUpperCase()+'</span><span class="cau-card-cnt">'+d.count+' veces</span></div>';
+    html += '</div>';
+    html += '<div class="cau-card-body">';
+
+    html += '<div class="cau-detail-grid">';
+
+    // Promotoras que la reportaron
+    var promsArr = Object.keys(d.promotoras).sort(function(a,b){return d.promotoras[b]-d.promotoras[a];});
+    html += '<div class="cau-block">';
+    html += '<div class="cau-block-lbl">👤 Promotoras</div>';
+    html += '<div class="cau-block-val">'+promsArr.slice(0,5).map(function(p){return p+' ('+d.promotoras[p]+')';}).join('<br>')+'</div>';
+    html += '</div>';
+
+    // Distritos
+    var distArr = Object.keys(d.distritos).sort(function(a,b){return d.distritos[b]-d.distritos[a];});
+    html += '<div class="cau-block">';
+    html += '<div class="cau-block-lbl">📍 Distritos</div>';
+    html += '<div class="cau-block-val">'+distArr.slice(0,5).map(function(dt){return dt+' ('+d.distritos[dt]+')';}).join('<br>')+'</div>';
+    html += '</div>';
+
+    // Análisis de respuestas según tipo
+    if (c === "AUN TIENE STOCK / BAJA ROTACION") {
+      var skuStats = {};
+      d.items.forEach(function(it){
+        var m = it.causalDet.match(/SKUs?: ([^(]+)\(([\d.]+) UND, S\/ ([\d.]+)/);
+        if(m){
+          var nm = m[1].trim();
+          if(!skuStats[nm]) skuStats[nm] = {count:0, undTotal:0, precios:[]};
+          skuStats[nm].count++;
+          skuStats[nm].undTotal += parseFloat(m[2]);
+          skuStats[nm].precios.push(parseFloat(m[3]));
+        }
+      });
+      var skuArr = Object.keys(skuStats).sort(function(a,b){return skuStats[b].count - skuStats[a].count;});
+      html += '<div class="cau-block">';
+      html += '<div class="cau-block-lbl">📦 SKUs con stock</div>';
+      html += '<div class="cau-block-val">';
+      skuArr.slice(0,4).forEach(function(s){
+        var st = skuStats[s];
+        var pProm = st.precios.reduce(function(a,b){return a+b;},0)/st.precios.length;
+        html += '<div style="margin-bottom:4px"><strong>'+s+'</strong><br><span style="font-size:10px;color:var(--t2)">'+st.count+' veces · ~'+st.undTotal+' UND · S/ '+pProm.toFixed(2)+' prom.</span></div>';
+      });
+      html += '</div></div>';
+    } else if (c === "RECHAZO POR PRECIO") {
+      var compStats = {};
+      d.items.forEach(function(it){
+        var m = it.causalDet.match(/Marca: ([^|]+) \| Precio venta: S\/ ([\d.]+)/);
+        if(m){
+          var marca = m[1].trim();
+          if(!compStats[marca]) compStats[marca] = {count:0, precios:[]};
+          compStats[marca].count++;
+          compStats[marca].precios.push(parseFloat(m[2]));
+        }
+      });
+      var compArr = Object.keys(compStats).sort(function(a,b){return compStats[b].count - compStats[a].count;});
+      html += '<div class="cau-block">';
+      html += '<div class="cau-block-lbl">🏷️ Competencia</div>';
+      html += '<div class="cau-block-val">';
+      compArr.forEach(function(m){
+        var st = compStats[m];
+        var pProm = st.precios.reduce(function(a,b){return a+b;},0)/st.precios.length;
+        html += '<div style="margin-bottom:4px"><strong>'+m+'</strong><br><span style="font-size:10px;color:var(--t2)">'+st.count+' veces · S/ '+pProm.toFixed(2)+' prom.</span></div>';
+      });
+      html += '</div></div>';
+    } else if (c === "RECHAZO POR BAJO MARGEN DE GANANCIA") {
+      var margStats = {};
+      d.items.forEach(function(it){
+        var m = it.causalDet.match(/SKUs?: ([^(]+)\(compra S\/ ([\d.]+), venta S\/ ([\d.]+)\) \| Dist compra: (.+)/);
+        if(m){
+          var nm = m[1].trim();
+          if(!margStats[nm]) margStats[nm] = {count:0, compras:[], ventas:[], dists:{}};
+          margStats[nm].count++;
+          margStats[nm].compras.push(parseFloat(m[2]));
+          margStats[nm].ventas.push(parseFloat(m[3]));
+          margStats[nm].dists[m[4]] = (margStats[nm].dists[m[4]]||0)+1;
+        }
+      });
+      html += '<div class="cau-block">';
+      html += '<div class="cau-block-lbl">📉 SKUs con margen bajo</div>';
+      html += '<div class="cau-block-val">';
+      Object.keys(margStats).slice(0,3).forEach(function(s){
+        var st = margStats[s];
+        var pc = st.compras.reduce(function(a,b){return a+b;},0)/st.compras.length;
+        var pv = st.ventas.reduce(function(a,b){return a+b;},0)/st.ventas.length;
+        var margen = ((pv-pc)/pc*100).toFixed(0);
+        html += '<div style="margin-bottom:4px"><strong>'+s+'</strong><br><span style="font-size:10px;color:var(--t2)">Compra S/ '+pc.toFixed(2)+' · Venta S/ '+pv.toFixed(2)+' · Margen '+margen+'%</span></div>';
+      });
+      html += '</div></div>';
+    } else if (c === "RECHAZA POR PRODUCTO BAJA CALIDAD") {
+      var comentarios = [];
+      d.items.forEach(function(it){
+        var m = it.causalDet.match(/Producto: ([^|]+) \| Comentario: (.+)/);
+        if(m) comentarios.push({prod:m[1].trim(), com:m[2].trim()});
+      });
+      html += '<div class="cau-block">';
+      html += '<div class="cau-block-lbl">💬 Comentarios de clientes</div>';
+      html += '<div class="cau-block-val">';
+      comentarios.slice(0,3).forEach(function(c){
+        html += '<div style="margin-bottom:6px"><strong style="font-size:10px">'+c.prod+'</strong><br><span style="font-size:11px;font-style:italic;color:var(--t2)">"'+c.com+'"</span></div>';
+      });
+      html += '</div></div>';
+    } else if (c === "DISTRIBUIDORA SIN STOCK") {
+      var prodStats = {};
+      d.items.forEach(function(it){
+        var m = it.causalDet.match(/Productos deseados: ([^(]+)\(([\d.]+) UND\)/);
+        if(m){
+          var nm = m[1].trim();
+          if(!prodStats[nm]) prodStats[nm] = {count:0, undTot:0};
+          prodStats[nm].count++;
+          prodStats[nm].undTot += parseFloat(m[2]);
+        }
+      });
+      html += '<div class="cau-block">';
+      html += '<div class="cau-block-lbl">🚚 Productos sin stock en distribuidora</div>';
+      html += '<div class="cau-block-val">';
+      Object.keys(prodStats).slice(0,4).forEach(function(s){
+        var st = prodStats[s];
+        html += '<div style="margin-bottom:4px"><strong>'+s+'</strong><br><span style="font-size:10px;color:var(--t2)">'+st.count+' pedidos · ~'+st.undTot+' UND solicitadas</span></div>';
+      });
+      html += '</div></div>';
+    } else if (c === "YA FUE VISITADO POR OTRO VENDEDOR") {
+      var distStats = {};
+      d.items.forEach(function(it){
+        var m = it.causalDet.match(/Distribuidora que visito antes: (.+)/);
+        if(m){
+          var nm = m[1].trim();
+          distStats[nm] = (distStats[nm]||0)+1;
+        }
+      });
+      var distArrV = Object.keys(distStats).sort(function(a,b){return distStats[b]-distStats[a];});
+      html += '<div class="cau-block">';
+      html += '<div class="cau-block-lbl">🏢 Distribuidoras competencia</div>';
+      html += '<div class="cau-block-val">';
+      distArrV.slice(0,5).forEach(function(d){
+        html += '<div style="margin-bottom:3px"><strong>'+d+'</strong> · '+distStats[d]+'</div>';
+      });
+      html += '</div></div>';
+    }
+
+    html += '</div>';
+
+    // ANÁLISIS EJECUTIVO POR CAUSAL
+    html += '<div class="cau-exec">';
+    html += '<div class="cau-exec-lbl">🎯 ANÁLISIS EJECUTIVO</div>';
+    html += '<div class="cau-exec-txt">' + analisisEjecutivoCausal(c, d, info) + '</div>';
+    html += '</div>';
+
+    html += '</div></div>';
+  });
+
+  document.getElementById('content').innerHTML = html;
+}
+
+function analisisEjecutivoCausal(causal, data, info) {
+  var n = data.count;
+  var promsArr = Object.keys(data.promotoras);
+  var nDistr = Object.keys(data.distritos).length;
+
+  if (causal === "AUN TIENE STOCK / BAJA ROTACION") {
+    return 'Esta causa indica <strong>rotación lenta del producto</strong> en el PDV. Con '+n+' incidencias en '+nDistr+' distrito(s), sugiere revisar: <strong>1)</strong> Frecuencia de visita (¿se está sobre-pidiendo?), <strong>2)</strong> Mix de productos ofrecidos (proponer SKUs alternativos), <strong>3)</strong> Coordinar con distribuidor para retirar stock vencido. <strong>Acción comercial:</strong> identificar PDVs con stock recurrente y crear plan de rotación con promoción específica.';
+  } else if (causal === "RECHAZO POR PRECIO") {
+    return 'Con <strong>'+n+' incidencias</strong>, los PDVs perciben nuestros precios como no competitivos. <strong>Acción:</strong> revisar listas de precios mayorista vs competencia identificada, considerar promociones tácticas en zonas afectadas, evaluar negociación con distribuidor para reducir precio sugerido. <strong>Crítico:</strong> validar si la causal está bien diagnosticada (¿es realmente precio o es percepción de margen?).';
+  } else if (causal === "RECHAZO POR BAJO MARGEN DE GANANCIA") {
+    return 'El PDV no encuentra rentabilidad suficiente para revender. Con <strong>'+n+' casos</strong>, sugiere revisar: <strong>1)</strong> Precio sugerido vs precio real al que la distribuidora vende al PDV, <strong>2)</strong> Posible necesidad de campaña de margen extra al canal, <strong>3)</strong> Acciones comerciales con distribuidor identificado en los reportes. <strong>Prioridad alta:</strong> esta causa erosiona el sell-out futuro.';
+  } else if (causal === "RECHAZA POR PRODUCTO BAJA CALIDAD") {
+    return '<strong>Causal crítica</strong> que requiere atención inmediata. Con '+n+' reportes, los comentarios deben escalarse al equipo de calidad y marketing. <strong>Acción inmediata:</strong> 1) Validar lotes específicos, 2) Verificar si es percepción aislada o tendencia, 3) Acompañamiento de supervisor en próximas visitas a estos PDVs para diálogo directo con cliente.';
+  } else if (causal === "DISTRIBUIDORA SIN STOCK") {
+    return 'Pérdida directa de venta por <strong>desabastecimiento</strong>. '+n+' pedidos no atendidos representan oportunidad perdida medible. <strong>Acción inmediata:</strong> coordinar con distribuidor para reposición prioritaria de SKUs identificados. <strong>Crítico:</strong> trackear si estos PDVs vuelven a pedir o se pierden permanentemente.';
+  } else if (causal === "YA FUE VISITADO POR OTRO VENDEDOR") {
+    return 'Indica <strong>traslape de cobertura comercial</strong> con otra distribuidora. Con '+n+' casos, sugiere: 1) Validar si la zona está siendo cubierta por más de una distribuidora autorizada, 2) Coordinar agenda con la distribuidora identificada, 3) Reasignar ruta si hay duplicidad real. Si la otra distribuidora NO está autorizada, escalar al área comercial.';
+  } else if (causal === "CERRADO") {
+    return 'Causal externa común. Con '+n+' casos, evaluar si las visitas se están realizando en horarios óptimos del PDV (mañana muy temprano o medio día pueden tener más cierres). Sugerir a la promotora replanificar visita en otro horario del día.';
+  } else if (causal === "NO TIENE EFECTIVO / DINERO") {
+    return 'Indicador económico del PDV. Con '+n+' casos, considerar: 1) Si es recurrente en zonas específicas (puede ser fin de mes), 2) Evaluar mecanismos de crédito o pago diferido con distribuidor, 3) Programar visita post-quincena en estos PDVs.';
+  } else if (causal === "NO SE ENCONTRABA EL DUENO") {
+    return 'Causal externa. Con '+n+' casos, sugerir a la promotora: 1) Solicitar al PDV un horario fijo de visita semanal, 2) Validar con el local empleado si tiene autonomía para hacer pedidos, 3) Reagendar visita en otro momento del día.';
+  } else if (causal === "YA FUE VISITADO POR CORREDOR (QUEMA)") {
+    return '<strong>Indicador de mercado gris.</strong> Con '+n+' casos, hay un corredor informal abasteciendo el PDV antes que el canal oficial. Coordinar con área comercial para identificar al corredor y evaluar si compite con precios bajos. <strong>Crítico:</strong> esta causal erosiona el canal formal y debe escalarse.';
+  } else if (causal === "NO VENDE NINGUNA CATEGORIA O NUESTRAS MARCAS") {
+    return 'El PDV no es relevante para nuestras marcas. Con '+n+' casos, evaluar: 1) Si estos PDVs deben salir de la ruta (limpieza de base), 2) Si hay oportunidad de introducir alguna categoría adelantada por demanda en la zona. Marcar PDVs como "no aplicable" si confirma el patrón.';
+  } else {
+    return 'Causal con '+n+' incidencias en '+promsArr.length+' promotora(s) y '+nDistr+' distrito(s). Analizar contexto específico con el supervisor a cargo.';
+  }
+}
+
+// ════════════════════════════════════════════════════════
+// TAB: PRODUCTOS
+// ════════════════════════════════════════════════════════
+function renderProductos() {
+  var data = dataFiltrada();
+  var skuMap = {};
+  data.forEach(function(r){
+    if(r.modo!=='SI'||!r.pedido) return;
+    r.pedido.forEach(function(p){
+      if(!skuMap[p.ean]) skuMap[p.ean] = {nm:p.nm, mc:p.mc, qty:0, tot:0, pdvs:{}, promotoras:{}};
+      skuMap[p.ean].qty += p.qty||0;
+      skuMap[p.ean].tot += (p.qty||0)*(p.price||0);
+      skuMap[p.ean].pdvs[r.pdv] = true;
+      skuMap[p.ean].promotoras[r.usuario] = true;
+    });
+  });
+  var skus = Object.keys(skuMap).map(function(e){
+    var s = skuMap[e];
+    return {ean:e, nm:s.nm, mc:s.mc, qty:s.qty, tot:s.tot, pdvs:Object.keys(s.pdvs).length, proms:Object.keys(s.promotoras).length};
+  });
+  skus.sort(function(a,b){return b.tot - a.tot;});
+
+  var totUnd = skus.reduce(function(a,s){return a+s.qty;},0);
+  var totSol = skus.reduce(function(a,s){return a+s.tot;},0);
+
+  var html = '';
+  if (skus.length > 0) {
+    html += '<div class="insight">';
+    html += '<div class="insight-lbl">📦 PRODUCTO ESTRELLA</div>';
+    html += '<div class="insight-txt"><strong>'+skus[0].nm+'</strong> lidera con <strong>'+skus[0].qty+' UND</strong> en <strong>'+skus[0].pdvs+' PDVs</strong> (S/ '+fmt(skus[0].tot)+'). Activado por '+skus[0].proms+' promotora(s).</div>';
+    html += '</div>';
+  }
+
+  html += '<div class="kpis">';
+  html += kpiCard('SKUs vendidos', skus.length);
+  html += kpiCard('Unidades totales', fmtN(totUnd));
+  html += kpiCard('Total S/', fmt(totSol), 'g');
+  html += '</div>';
+
+  html += '<div class="sec">';
+  html += '<div class="sec-hdr"><div class="sec-ttl"><div class="sec-ttl-ico">📦</div>Ranking de SKUs</div></div>';
+  if (skus.length === 0) {
+    html += '<div class="empty">Sin ventas registradas</div>';
+  } else {
+    html += '<table class="tbl"><thead><tr><th>#</th><th>SKU</th><th>Marca</th><th class="r">UND</th><th class="r">PDVs</th><th class="r">Proms</th><th class="r">Total S/</th><th class="r">% mix</th></tr></thead><tbody>';
+    skus.forEach(function(s, i){
+      var pct = Math.round(s.tot/totSol*100);
+      var medal = i===0?'🥇 ':(i===1?'🥈 ':(i===2?'🥉 ':''));
+      html += '<tr>';
+      html += '<td><strong>'+(i+1)+'</strong></td>';
+      html += '<td>'+medal+'<strong>'+s.nm+'</strong></td>';
+      html += '<td style="color:var(--t2)">'+s.mc+'</td>';
+      html += '<td class="r num">'+s.qty+'</td>';
+      html += '<td class="r num">'+s.pdvs+'</td>';
+      html += '<td class="r num">'+s.proms+'</td>';
+      html += '<td class="r num"><strong>S/ '+fmt(s.tot)+'</strong></td>';
+      html += '<td class="r num">'+pct+'%</td>';
+      html += '</tr>';
+    });
+    html += '</tbody></table>';
+  }
+  html += '</div>';
+
+  document.getElementById('content').innerHTML = html;
+}
+
+// ════════════════════════════════════════════════════════
+// TAB: GEOGRÁFICO con MAPA DE CALOR
+// ════════════════════════════════════════════════════════
+var MAP_INSTANCE = null;
+var MAP_LAYERS = [];
+var MAP_NIVEL = 'departamento'; // 'departamento' | 'provincia' | 'distrito'
+
+function renderGeo() {
+  var data = dataFiltrada();
+
+  // Métricas por nivel
+  var depMap = agruparGeo(data, 'departamento');
+  var provMap = agruparGeo(data, 'provincia');
+  var distMap = agruparGeo(data, 'distrito');
+
+  var html = '';
+
+  var depArr = Object.keys(depMap).sort(function(a,b){return depMap[b].tot - depMap[a].tot;});
+  if (depArr.length > 0) {
+    html += '<div class="insight">';
+    html += '<div class="insight-lbl">📍 GEOGRAFÍA TOP</div>';
+    var topD = depArr[0];
+    html += '<div class="insight-txt"><strong>'+topD+'</strong> concentra <strong>S/ '+fmt(depMap[topD].tot)+'</strong> ('+depMap[topD].vis+' visitas, '+depMap[topD].ef+'% efectividad). '+
+      (depArr.length > 1 ? 'Le sigue <strong>'+depArr[1]+'</strong> con S/ '+fmt(depMap[depArr[1]].tot)+'.' : '')+
+      '</div></div>';
+  }
+
+  // ── MAPA DE CALOR ──
+  html += '<div class="sec">';
+  html += '<div class="sec-hdr">';
+  html += '<div class="sec-ttl"><div class="sec-ttl-ico">🔥</div>Mapa de calor — Concentración de ventas</div>';
+  html += '</div>';
+  html += '<div class="map-wrap">';
+  html += '<div class="map-controls">';
+  html += '<button class="map-ctrl-btn'+(MAP_NIVEL==='departamento'?' on':'')+'" onclick="cambiarNivelMapa(\'departamento\')">Departamento</button>';
+  html += '<button class="map-ctrl-btn'+(MAP_NIVEL==='provincia'?' on':'')+'" onclick="cambiarNivelMapa(\'provincia\')">Provincia</button>';
+  html += '<button class="map-ctrl-btn'+(MAP_NIVEL==='distrito'?' on':'')+'" onclick="cambiarNivelMapa(\'distrito\')">Distrito</button>';
+  html += '</div>';
+  html += '<div id="mapa-calor" class="map-inner"></div>';
+  html += '<div class="map-legend">';
+  html += '<div class="map-legend-ttl">Intensidad de ventas</div>';
+  html += '<div class="map-legend-row"><div class="map-legend-dot" style="background:#DC2626"></div>Muy alta (top 20%)</div>';
+  html += '<div class="map-legend-row"><div class="map-legend-dot" style="background:#F59E0B"></div>Alta</div>';
+  html += '<div class="map-legend-row"><div class="map-legend-dot" style="background:#2563EB"></div>Media</div>';
+  html += '<div class="map-legend-row"><div class="map-legend-dot" style="background:#10B981"></div>Baja</div>';
+  html += '<div class="map-legend-row"><div class="map-legend-dot" style="background:#94A3B8"></div>Mínima</div>';
+  html += '</div>';
+  html += '</div>';
+  html += '<p style="font-size:11px;color:var(--t2);margin-top:10px;line-height:1.5">💡 Cada área coloreada representa una zona; el color indica el volumen de ventas. Pasa el cursor para ver el detalle o haz clic en el popup para filtrar.</p>';
+  html += '</div>';
+
+  // ── ANÁLISIS EJECUTIVO GEOGRÁFICO (responde a filtros) ──
+  html += renderAnalisisEjecutivoGeo(data, depMap, provMap, distMap);
+
+  // Tablas por nivel
+  html += '<div class="sec">';
+  html += '<div class="sec-hdr"><div class="sec-ttl"><div class="sec-ttl-ico">🗺️</div>Por Departamento</div></div>';
+  html += renderTablaGeo(depMap, 'Departamento');
+  html += '</div>';
+
+  html += '<div class="sec">';
+  html += '<div class="sec-hdr"><div class="sec-ttl"><div class="sec-ttl-ico">🏞️</div>Por Provincia</div></div>';
+  html += renderTablaGeo(provMap, 'Provincia');
+  html += '</div>';
+
+  html += '<div class="sec">';
+  html += '<div class="sec-hdr"><div class="sec-ttl"><div class="sec-ttl-ico">📍</div>Por Distrito</div></div>';
+  html += renderTablaGeo(distMap, 'Distrito');
+  html += '</div>';
+
+  // Movimiento de SKUs por geografía
+  html += renderSkusPorGeo(data);
+
+  document.getElementById('content').innerHTML = html;
+
+  // Inicializar mapa después de insertar el DOM
+  setTimeout(function(){ pintarMapaCalor(); }, 50);
+}
+
+function cambiarNivelMapa(nivel) {
+  MAP_NIVEL = nivel;
+  // Cambiar clases de los botones sin re-renderizar todo
+  var btns = document.querySelectorAll('.map-ctrl-btn');
+  btns.forEach(function(b){ b.classList.remove('on'); });
+  // Encuentra el botón clicado y activalo
+  btns.forEach(function(b){
+    if (b.textContent.toLowerCase() === nivel) b.classList.add('on');
+  });
+  pintarMapaCalor();
+}
+
+// Cache global de GeoJSON cargados (para no descargar varias veces)
+var GEOJSON_CACHE = { departamento: null, provincia: null, distrito: null };
+var GEOJSON_LOADING = { departamento: false, provincia: false, distrito: false };
+
+// URLs CDN (jsDelivr con cache global)
+var GEOJSON_URLS = {
+  departamento: 'https://cdn.jsdelivr.net/gh/juaneladio/peru-geojson@master/peru_departamental_simple.geojson',
+  provincia:    'https://cdn.jsdelivr.net/gh/juaneladio/peru-geojson@master/peru_provincial_simple.geojson',
+  distrito:     'https://cdn.jsdelivr.net/gh/juaneladio/peru-geojson@master/peru_distrital_simple.geojson'
+};
+
+// Mapeo de campos en el GeoJSON
+var GEOJSON_FIELDS = {
+  departamento: { nombre: 'NOMBDEP', codigo: 'FIRST_IDDP' },
+  provincia:    { nombre: 'NOMBPROV', codigo: 'FIRST_IDPR' },
+  distrito:     { nombre: 'NOMBDIST', codigo: 'IDDIST' }
+};
+
+// Normalizar nombres para hacer match (sin tildes, mayúsculas)
+function normNm(s) {
+  if (!s) return '';
+  return String(s).toUpperCase()
+    .replace(/Á/g,'A').replace(/É/g,'E').replace(/Í/g,'I').replace(/Ó/g,'O').replace(/Ú/g,'U').replace(/Ñ/g,'N')
+    .replace(/[^A-Z0-9\s]/g,'').trim().replace(/\s+/g,' ');
+}
+
+// Mapeo manual de algunos nombres no estándar de la app a nombres del GeoJSON
+var GEO_NAME_MAP = {
+  // App → GeoJSON
+  "SMP": "SAN MARTIN DE PORRES",
+  "SAN JUAN DE LURIGANCHO": "SAN JUAN DE LURIGANCHO",
+  "BREÑA": "BRENA",
+  "JESUS MARIA": "JESUS MARIA"
+};
+
+function nombreGeoJSON(nombreApp) {
+  var n = String(nombreApp || '').toUpperCase().trim();
+  if (GEO_NAME_MAP[n]) return normNm(GEO_NAME_MAP[n]);
+  return normNm(n);
+}
+
+// Cargar GeoJSON via fetch (con cache)
+function cargarGeoJSON(nivel, callback) {
+  if (GEOJSON_CACHE[nivel]) { callback(GEOJSON_CACHE[nivel]); return; }
+  if (GEOJSON_LOADING[nivel]) {
+    // Si ya se está cargando, esperar
+    var checkInt = setInterval(function() {
+      if (GEOJSON_CACHE[nivel]) {
+        clearInterval(checkInt);
+        callback(GEOJSON_CACHE[nivel]);
+      } else if (!GEOJSON_LOADING[nivel]) {
+        clearInterval(checkInt);
+        callback(null);
+      }
+    }, 200);
+    return;
+  }
+  GEOJSON_LOADING[nivel] = true;
+  fetch(GEOJSON_URLS[nivel])
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      GEOJSON_CACHE[nivel] = data;
+      GEOJSON_LOADING[nivel] = false;
+      callback(data);
+    })
+    .catch(function(e) {
+      console.error('Error cargando GeoJSON ' + nivel, e);
+      GEOJSON_LOADING[nivel] = false;
+      callback(null);
+    });
+}
+
+function pintarMapaCalor() {
+  var mapEl = document.getElementById('mapa-calor');
+  if (!mapEl) return;
+  if (typeof L === 'undefined') {
+    mapEl.innerHTML = '<div style="padding:40px;text-align:center;color:var(--t2)">⚠ Leaflet no se cargó. El mapa requiere internet.</div>';
+    return;
+  }
+
+  // Limpiar mapa anterior
+  if (MAP_INSTANCE) {
+    MAP_INSTANCE.remove();
+    MAP_INSTANCE = null;
+    MAP_LAYERS = [];
+  }
+
+  // Decidir nivel automáticamente según filtros activos
+  var nivelMapa = MAP_NIVEL;
+  if (FILTROS.distrito) nivelMapa = 'distrito';
+  else if (FILTROS.provincia) nivelMapa = 'distrito';   // dentro de provincia, ver distritos
+  else if (FILTROS.departamento) nivelMapa = 'provincia'; // dentro de depto, ver provincias
+
+  // Crear mapa
+  MAP_INSTANCE = L.map('mapa-calor', {
+    zoomControl: true,
+    attributionControl: false,
+    scrollWheelZoom: true
+  }).setView([-9.5, -75], 5);
+
+  // Tile layer
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    maxZoom: 18,
+    subdomains: 'abcd'
+  }).addTo(MAP_INSTANCE);
+
+  // Mostrar loader mientras carga el GeoJSON
+  var loader = L.control({position:'topright'});
+  loader.onAdd = function() {
+    var div = L.DomUtil.create('div');
+    div.id = 'map-geo-loader';
+    div.innerHTML = '<div style="background:rgba(255,255,255,.96);padding:8px 12px;border-radius:8px;font-size:11px;color:#64748B;box-shadow:0 2px 8px rgba(0,0,0,.1)"><span style="display:inline-block;width:10px;height:10px;border:2px solid #E2E8F0;border-top-color:#2563EB;border-radius:50%;animation:spin 1s linear infinite;vertical-align:-2px;margin-right:6px"></span> Cargando mapa...</div>';
+    return div;
+  };
+  loader.addTo(MAP_INSTANCE);
+
+  // Calcular datos
+  var data = dataFiltrada();
+  var grupos = agruparGeo(data, nivelMapa);
+
+  // Cargar GeoJSON correspondiente
+  cargarGeoJSON(nivelMapa, function(geoData) {
+    // Quitar loader
+    var ldr = document.getElementById('map-geo-loader');
+    if (ldr) ldr.remove();
+
+    if (!geoData) {
+      // Si falló el GeoJSON, mensaje al usuario
+      var errC = L.control({position:'topright'});
+      errC.onAdd = function() {
+        var div = L.DomUtil.create('div');
+        div.innerHTML = '<div style="background:#FEE2E2;color:#991B1B;padding:10px 14px;border-radius:8px;font-size:12px;font-weight:500;max-width:280px">⚠ No se pudo cargar el mapa territorial. Verifica tu conexión a internet y recarga la página.</div>';
+        return div;
+      };
+      errC.addTo(MAP_INSTANCE);
+      return;
+    }
+
+    // Percentiles para colores
+    var totales = Object.keys(grupos).map(function(k){return grupos[k].tot;}).filter(function(t){return t > 0;}).sort(function(a,b){return a-b;});
+    var p80 = totales.length>0 ? totales[Math.floor(totales.length * 0.8)] : 0;
+    var p60 = totales.length>0 ? totales[Math.floor(totales.length * 0.6)] : 0;
+    var p40 = totales.length>0 ? totales[Math.floor(totales.length * 0.4)] : 0;
+    var p20 = totales.length>0 ? totales[Math.floor(totales.length * 0.2)] : 0;
+
+    function colorPor(tot) {
+      if (tot === 0) return '#E5E7EB'; // sin datos
+      if (tot >= p80) return '#DC2626';
+      if (tot >= p60) return '#F59E0B';
+      if (tot >= p40) return '#2563EB';
+      if (tot >= p20) return '#10B981';
+      return '#94A3B8';
+    }
+
+    // Mapeo de nombres normalizados de la app
+    var gruposNorm = {};
+    Object.keys(grupos).forEach(function(k) {
+      gruposNorm[nombreGeoJSON(k)] = grupos[k];
+      gruposNorm[nombreGeoJSON(k)]._nombreOriginal = k;
+    });
+
+    var fields = GEOJSON_FIELDS[nivelMapa];
+
+    // Filtrar features según filtros activos del dashboard
+    var featuresFiltradas = geoData.features.filter(function(f) {
+      var props = f.properties;
+      var nombre = props[fields.nombre];
+      if (!nombre) return false;
+
+      // Si hay filtro de departamento y estamos en provincia: mostrar provs del depto
+      if (nivelMapa === 'provincia' && FILTROS.departamento) {
+        var depFeat = (props.FIRST_NOMB || '').toUpperCase().trim();
+        if (normNm(depFeat) !== normNm(FILTROS.departamento)) return false;
+      }
+      // Si hay filtro de provincia y estamos en distrito: mostrar distritos de la provincia
+      // (los distritos GeoJSON tienen IDDIST tipo "150101" donde 1501 es prov)
+      if (nivelMapa === 'distrito') {
+        var idDist = String(props[fields.codigo] || '');
+        if (FILTROS.provincia) {
+          // Necesitamos saber el código de la provincia. La sacamos del nombre.
+          // Como no tenemos mapeo directo, mostramos todos y dejamos que el data filter haga su trabajo.
+        }
+        if (FILTROS.departamento) {
+          // Los primeros 2 dígitos del IDDIST son el código del departamento
+          // Para simplificar, mostraremos solo los distritos que tienen datos en grupos
+          var nombreDistrito = nombreGeoJSON(nombre);
+          if (!gruposNorm[nombreDistrito]) return false;
+        }
+      }
+
+      return true;
+    });
+
+    // Crear layer GeoJSON con estilos dinámicos
+    var geoLayer = L.geoJSON({type:'FeatureCollection', features: featuresFiltradas}, {
+      style: function(feature) {
+        var nombre = feature.properties[fields.nombre];
+        var nNorm = nombreGeoJSON(nombre);
+        var datos = gruposNorm[nNorm];
+        var tot = datos ? datos.tot : 0;
+        return {
+          fillColor: colorPor(tot),
+          weight: 1.2,
+          opacity: 1,
+          color: '#fff',
+          fillOpacity: tot > 0 ? 0.7 : 0.25
+        };
+      },
+      onEachFeature: function(feature, layer) {
+        var nombre = feature.properties[fields.nombre];
+        var nNorm = nombreGeoJSON(nombre);
+        var datos = gruposNorm[nNorm];
+
+        if (datos) {
+          var d = datos;
+          var zonaOriginal = d._nombreOriginal;
+          var popup = buildPopup(zonaOriginal, d, nivelMapa);
+          layer.bindPopup(popup);
+          layer.bindTooltip('<strong>'+nombre+'</strong><br>S/ '+fmt(d.tot)+' · '+d.vis+' visitas', {
+            direction: 'top', sticky: true, className: 'zona-tooltip'
+          });
+        } else {
+          layer.bindTooltip('<strong>'+nombre+'</strong><br><span style="color:#9CA3AF">Sin datos</span>', {
+            direction: 'top', sticky: true
+          });
+        }
+
+        // Resaltar al pasar el mouse
+        layer.on('mouseover', function(e) {
+          var lyr = e.target;
+          lyr.setStyle({ weight: 2.5, color: '#0F172A', fillOpacity: 0.85 });
+          lyr.bringToFront();
+        });
+        layer.on('mouseout', function(e) {
+          geoLayer.resetStyle(e.target);
+        });
+      }
+    }).addTo(MAP_INSTANCE);
+
+    MAP_LAYERS.push(geoLayer);
+
+    // Etiquetas con nombre + monto en zonas con datos
+    Object.keys(gruposNorm).forEach(function(nNorm) {
+      var datos = gruposNorm[nNorm];
+      if (datos.tot === 0) return;
+      // Buscar la feature correspondiente
+      var feat = featuresFiltradas.find(function(f) {
+        return nombreGeoJSON(f.properties[fields.nombre]) === nNorm;
+      });
+      if (!feat) return;
+      // Centroide aproximado del polígono
+      var centroid = calcCentroide(feat.geometry);
+      if (!centroid) return;
+
+      var color = colorPor(datos.tot);
+      var label = L.marker(centroid, {
+        icon: L.divIcon({
+          className: 'zone-label',
+          html: '<div style="background:rgba(255,255,255,.96);border:1.5px solid '+color+';padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;color:'+color+';white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.18);text-align:center"><div>'+datos._nombreOriginal+'</div><div style="font-size:9px;color:#64748B;font-weight:500;margin-top:1px">S/ '+fmt(datos.tot)+'</div></div>',
+          iconSize: [110, 32],
+          iconAnchor: [55, 16]
+        }),
+        interactive: false
+      }).addTo(MAP_INSTANCE);
+      MAP_LAYERS.push(label);
+    });
+
+    // Ajustar vista
+    setTimeout(function() {
+      try {
+        if (featuresFiltradas.length > 0) {
+          MAP_INSTANCE.fitBounds(geoLayer.getBounds(), { padding: [40, 40], maxZoom: nivelMapa==='distrito' ? 13 : (nivelMapa==='provincia' ? 11 : 9) });
+        }
+      } catch(e) {}
+      MAP_INSTANCE.invalidateSize();
+    }, 100);
+  });
+}
+
+// Calcular centroide aproximado de un Polygon o MultiPolygon
+function calcCentroide(geom) {
+  if (!geom || !geom.coordinates) return null;
+  var coords = [];
+  if (geom.type === 'Polygon') {
+    coords = geom.coordinates[0]; // anillo exterior
+  } else if (geom.type === 'MultiPolygon') {
+    // Tomar el polígono más grande
+    var biggest = geom.coordinates[0];
+    geom.coordinates.forEach(function(poly) {
+      if (poly[0].length > biggest[0].length) biggest = poly;
+    });
+    coords = biggest[0];
+  } else {
+    return null;
+  }
+  if (!coords.length) return null;
+  // Promedio simple de las coordenadas del anillo
+  var sumLat = 0, sumLng = 0;
+  coords.forEach(function(c) { sumLng += c[0]; sumLat += c[1]; });
+  return [sumLat / coords.length, sumLng / coords.length];
+}
+
+function buildPopup(zona, d, nivel) {
+  var popup = '<div style="min-width:200px">';
+  popup += '<div style="font-size:14px;font-weight:700;color:var(--blue-d);border-bottom:1px solid #E2E8F0;padding-bottom:6px;margin-bottom:8px">📍 '+zona+'</div>';
+  popup += '<div style="font-size:11px;color:#64748B">Total ventas</div>';
+  popup += '<div style="font-size:20px;font-weight:700;color:#0F172A;margin-bottom:6px">S/ '+fmt(d.tot)+'</div>';
+  popup += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11px">';
+  popup += '<div><span style="color:#64748B">Visitas:</span> <strong>'+d.vis+'</strong></div>';
+  popup += '<div><span style="color:#64748B">C/Venta:</span> <strong style="color:#059669">'+d.cv+'</strong></div>';
+  popup += '<div><span style="color:#64748B">Efectividad:</span> <strong>'+d.ef+'%</strong></div>';
+  popup += '<div><span style="color:#64748B">Sin venta:</span> <strong>'+d.sv+'</strong></div>';
+  popup += '</div>';
+  popup += '<button onclick="filtrarPorZonaMapa(\''+nivel+'\',\''+zona+'\')" style="margin-top:10px;width:100%;background:var(--blue);color:#fff;border:none;padding:6px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer">Filtrar por '+zona+'</button>';
+  popup += '</div>';
+  return popup;
+}
+
+function filtrarPorZonaMapa(nivel, zona) {
+  if (nivel === 'departamento') { FILTROS.departamento = zona; FILTROS.provincia = ''; FILTROS.distrito = ''; }
+  else if (nivel === 'provincia') { FILTROS.provincia = zona; FILTROS.distrito = ''; }
+  else if (nivel === 'distrito') { FILTROS.distrito = zona; }
+  renderFiltros();
+  renderContent();
+}
+
+function agruparGeo(data, campo) {
+  var map = {};
+  data.forEach(function(r){
+    var k = r[campo] || 'Sin definir';
+    if(!map[k]) map[k] = {vis:{}, cv:0, sv:0, ext:0, tot:0};
+    map[k].vis[r.id] = true;
+    if(r.modo === 'SI') { map[k].cv++; map[k].tot += r.total||0; }
+    else {
+      map[k].sv++;
+      if(CAUSALES_INFO[r.causal] && CAUSALES_INFO[r.causal].tipo === 'externa') map[k].ext++;
+    }
+  });
+  Object.keys(map).forEach(function(k){
+    var d = map[k];
+    d.vis = Object.keys(d.vis).length;
+    // CV y SV cuentan filas, no visitas únicas — corrijo a visitas
+    d.neto = d.vis - d.ext;
+    d.ef = d.neto > 0 ? Math.round(d.cv/d.neto*100) : 0;
+  });
+  return map;
+}
+
+function renderTablaGeo(map, lbl) {
+  var arr = Object.keys(map).map(function(k){return Object.assign({nm:k}, map[k]);});
+  arr.sort(function(a,b){return b.tot - a.tot;});
+
+  if (arr.length === 0) return '<div class="empty">Sin datos</div>';
+
+  var html = '<table class="tbl"><thead><tr>';
+  html += '<th>'+lbl+'</th><th class="r">Visitas</th><th class="r">C/Venta</th><th class="r">Efect.</th><th class="r">Total S/</th>';
+  html += '</tr></thead><tbody>';
+  arr.forEach(function(d){
+    var efCol = d.ef>=65?'var(--green)':(d.ef>=50?'var(--amber)':'var(--red)');
+    html += '<tr>';
+    html += '<td><strong>'+d.nm+'</strong></td>';
+    html += '<td class="r num">'+d.vis+'</td>';
+    html += '<td class="r num" style="color:var(--green)">'+d.cv+'</td>';
+    html += '<td class="r num" style="color:'+efCol+'"><strong>'+d.ef+'%</strong></td>';
+    html += '<td class="r num"><strong>S/ '+fmt(d.tot)+'</strong></td>';
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  return html;
+}
+
+// ════════════════════════════════════════════════════════
+// ANÁLISIS EJECUTIVO GEOGRÁFICO (con planes de acción)
+// ════════════════════════════════════════════════════════
+function renderAnalisisEjecutivoGeo(data, depMap, provMap, distMap) {
+  var html = '<div class="sec">';
+  html += '<div class="sec-hdr">';
+  html += '<div class="sec-ttl"><div class="sec-ttl-ico">🎯</div>Análisis ejecutivo y plan de acción</div>';
+  html += '<div style="font-size:11px;color:var(--t2)">Se actualiza según los filtros aplicados</div>';
+  html += '</div>';
+
+  // Caso 1: Filtro de distrito específico
+  if (FILTROS.distrito && distMap[FILTROS.distrito]) {
+    html += renderAnalisisZona(FILTROS.distrito, distMap[FILTROS.distrito], data, 'distrito');
+  }
+  // Caso 2: Filtro de provincia
+  else if (FILTROS.provincia && provMap[FILTROS.provincia]) {
+    html += renderAnalisisZona(FILTROS.provincia, provMap[FILTROS.provincia], data, 'provincia');
+    // + Top 3 distritos de esa provincia
+    var distInProv = {};
+    data.forEach(function(r){
+      if (r.provincia === FILTROS.provincia) {
+        if (!distInProv[r.distrito]) distInProv[r.distrito] = {tot:0, vis:{}};
+        distInProv[r.distrito].vis[r.id] = true;
+        if (r.modo === 'SI') distInProv[r.distrito].tot += r.total||0;
+      }
+    });
+    var topDist = Object.keys(distInProv).map(function(k){return {nm:k, tot:distInProv[k].tot, vis:Object.keys(distInProv[k].vis).length};}).sort(function(a,b){return b.tot - a.tot;}).slice(0,3);
+    if (topDist.length > 0) {
+      html += '<div style="background:var(--blue-l);border-radius:10px;padding:12px 14px;margin-top:12px">';
+      html += '<div style="font-size:11px;font-weight:700;color:var(--blue-d);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">📍 TOP DISTRITOS EN '+FILTROS.provincia+'</div>';
+      topDist.forEach(function(t,i){
+        html += '<div style="font-size:13px;color:var(--blue-d);margin-bottom:4px">'+(i+1)+'. <strong>'+t.nm+'</strong> · S/ '+fmt(t.tot)+' ('+t.vis+' visitas)</div>';
+      });
+      html += '</div>';
+    }
+  }
+  // Caso 3: Filtro de departamento
+  else if (FILTROS.departamento && depMap[FILTROS.departamento]) {
+    html += renderAnalisisZona(FILTROS.departamento, depMap[FILTROS.departamento], data, 'departamento');
+    // + Distribución por provincia
+    var provInDep = {};
+    data.forEach(function(r){
+      if (r.departamento === FILTROS.departamento) {
+        if (!provInDep[r.provincia]) provInDep[r.provincia] = {tot:0, vis:{}};
+        provInDep[r.provincia].vis[r.id] = true;
+        if (r.modo === 'SI') provInDep[r.provincia].tot += r.total||0;
+      }
+    });
+    var topProv = Object.keys(provInDep).map(function(k){return {nm:k, tot:provInDep[k].tot, vis:Object.keys(provInDep[k].vis).length};}).sort(function(a,b){return b.tot - a.tot;}).slice(0,5);
+    if (topProv.length > 0) {
+      html += '<div style="background:var(--blue-l);border-radius:10px;padding:12px 14px;margin-top:12px">';
+      html += '<div style="font-size:11px;font-weight:700;color:var(--blue-d);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🏞️ PROVINCIAS DE '+FILTROS.departamento+'</div>';
+      topProv.forEach(function(t,i){
+        html += '<div style="font-size:13px;color:var(--blue-d);margin-bottom:4px">'+(i+1)+'. <strong>'+t.nm+'</strong> · S/ '+fmt(t.tot)+' ('+t.vis+' visitas)</div>';
+      });
+      html += '</div>';
+    }
+  }
+  // Caso 4: Sin filtros geográficos → vista nacional
+  else {
+    html += renderAnalisisNacional(depMap, data);
+  }
+
+  html += '</div>';
+  return html;
+}
+
+function renderAnalisisZona(zona, datos, dataFull, nivel) {
+  // Subset de data relacionada con esta zona
+  var dataZona;
+  if (nivel === 'distrito') dataZona = dataFull.filter(function(r){return r.distrito === zona;});
+  else if (nivel === 'provincia') dataZona = dataFull.filter(function(r){return r.provincia === zona;});
+  else dataZona = dataFull.filter(function(r){return r.departamento === zona;});
+
+  // Causal top
+  var causalCount = {};
+  dataZona.forEach(function(r){ if(r.modo==='NO'&&r.causal) causalCount[r.causal] = (causalCount[r.causal]||0)+1; });
+  var causalTop = Object.keys(causalCount).sort(function(a,b){return causalCount[b]-causalCount[a];})[0];
+
+  // SKU top
+  var skuCount = {};
+  dataZona.forEach(function(r){
+    if (r.modo === 'SI' && r.pedido) r.pedido.forEach(function(p){
+      if (!skuCount[p.nm]) skuCount[p.nm] = {qty:0, tot:0};
+      skuCount[p.nm].qty += p.qty||0;
+      skuCount[p.nm].tot += (p.qty||0)*(p.price||0);
+    });
+  });
+  var skuArr = Object.keys(skuCount).map(function(k){return {nm:k, qty:skuCount[k].qty, tot:skuCount[k].tot};}).sort(function(a,b){return b.tot - a.tot;});
+  var skuTop = skuArr[0];
+
+  // Promotoras activas
+  var promsAct = {};
+  dataZona.forEach(function(r){ promsAct[r.usuario] = true; });
+  var nProms = Object.keys(promsAct).length;
+
+  // Comentario ejecutivo dinámico
+  var nivelLbl = nivel === 'departamento' ? 'el departamento' : (nivel === 'provincia' ? 'la provincia' : 'el distrito');
+  var efTexto = datos.ef >= 65 ? 'sobresaliente' : (datos.ef >= 50 ? 'aceptable' : 'baja');
+  var efColor = datos.ef >= 65 ? 'var(--green)' : (datos.ef >= 50 ? 'var(--amber)' : 'var(--red)');
+
+  var html = '<div style="background:linear-gradient(135deg,var(--purple-l),#F5F3FF);border-left:4px solid var(--purple);border-radius:12px;padding:16px 18px">';
+  html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">';
+  html += '<span style="font-size:20px">📊</span>';
+  html += '<div style="font-size:13px;font-weight:700;color:#5B21B6;text-transform:uppercase;letter-spacing:.5px">LECTURA EJECUTIVA · '+zona+'</div>';
+  html += '</div>';
+
+  // Resumen narrativo
+  html += '<div style="font-size:13.5px;color:#4C1D95;line-height:1.7;margin-bottom:12px">';
+  html += 'En '+nivelLbl+' <strong>'+zona+'</strong> se registraron <strong>'+datos.vis+' visitas</strong> generando <strong>S/ '+fmt(datos.tot)+'</strong> en ventas con una efectividad <strong style="color:'+efColor+'">'+efTexto+' del '+datos.ef+'%</strong>. ';
+  if (nProms > 0) html += 'Participaron <strong>'+nProms+' promotora(s)</strong> en la zona. ';
+  if (skuTop) html += 'El SKU líder es <strong>'+skuTop.nm+'</strong> con '+skuTop.qty+' UND vendidas. ';
+  if (causalTop) html += 'La principal barrera fue <strong>'+causalTop+'</strong> ('+causalCount[causalTop]+' veces).';
+  html += '</div>';
+
+  // Inputs / Observaciones detectados
+  html += '<div style="background:rgba(255,255,255,.7);border-radius:8px;padding:11px 13px;margin-bottom:12px">';
+  html += '<div style="font-size:10px;font-weight:700;color:#5B21B6;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">📥 INPUTS DETECTADOS</div>';
+  html += '<ul style="margin:0;padding-left:18px;font-size:12.5px;color:#4C1D95;line-height:1.7">';
+
+  if (datos.tot === 0 && datos.vis > 0) html += '<li><strong>Ventas en cero:</strong> '+datos.vis+' visita(s) sin generar pedido. Revisar urgentemente la operación en la zona.</li>';
+  if (datos.ef < 40 && datos.vis > 3) html += '<li><strong>Efectividad crítica</strong> ('+datos.ef+'%): la conversión es menor a 4 de cada 10 visitas. Acompañamiento del supervisor recomendado.</li>';
+  if (datos.ext > datos.vis * 0.4) html += '<li><strong>Alto porcentaje de causales externas</strong> ('+datos.ext+' de '+datos.vis+'): muchos PDVs cerrados o sin dueño. Revisar horarios de visita.</li>';
+  if (causalTop && CAUSALES_INFO[causalTop] && CAUSALES_INFO[causalTop].tipo === 'interna') {
+    html += '<li><strong>Causa interna recurrente:</strong> "'+causalTop+'" requiere acción comercial específica.</li>';
+  }
+  if (skuArr.length === 1 && datos.cv > 3) html += '<li><strong>Concentración en 1 solo SKU:</strong> oportunidad para diversificar el mix vendido en la zona.</li>';
+  if (skuArr.length >= 4) html += '<li><strong>Buen mix de productos:</strong> '+skuArr.length+' SKUs activados — replicar estrategia en otras zonas.</li>';
+  if (nProms === 1 && datos.vis > 8) html += '<li><strong>Una sola promotora cubre la zona:</strong> evaluar carga de trabajo.</li>';
+
+  html += '</ul></div>';
+
+  // Plan de acción
+  html += '<div style="background:rgba(255,255,255,.85);border-radius:8px;padding:11px 13px;border:1.5px dashed var(--purple)">';
+  html += '<div style="font-size:10px;font-weight:700;color:#5B21B6;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">🎯 PLAN DE ACCIÓN SUGERIDO</div>';
+  html += '<ol style="margin:0;padding-left:18px;font-size:12.5px;color:#4C1D95;line-height:1.7">';
+
+  // Acciones según contexto
+  if (datos.ef < 50) {
+    html += '<li><strong>Acompañamiento en ruta:</strong> el supervisor debe acompañar 1 día completo a la(s) promotora(s) de la zona para identificar barreras operativas reales.</li>';
+  }
+  if (causalTop === 'AUN TIENE STOCK / BAJA ROTACION') {
+    html += '<li><strong>Plan de rotación:</strong> coordinar promoción específica con distribuidor para los PDVs con stock acumulado. Considerar 2x1 o rebate al canal.</li>';
+  }
+  if (causalTop === 'RECHAZO POR PRECIO') {
+    html += '<li><strong>Revisar precio listado:</strong> validar competencia identificada y evaluar promoción táctica de 2 semanas.</li>';
+  }
+  if (causalTop === 'DISTRIBUIDORA SIN STOCK') {
+    html += '<li><strong>Reposición urgente:</strong> escalar al área comercial los SKUs faltantes — son ventas perdidas medibles.</li>';
+  }
+  if (causalTop === 'RECHAZO POR BAJO MARGEN DE GANANCIA') {
+    html += '<li><strong>Negociar margen extra:</strong> coordinar con distribuidor el cierre de brecha entre precio compra y sugerido de venta.</li>';
+  }
+  if (datos.vis > 0 && skuArr.length < 3) {
+    html += '<li><strong>Diversificar oferta:</strong> introducir gradualmente 2-3 SKUs adicionales del portafolio Kenvue por visita.</li>';
+  }
+  if (datos.tot >= 1000) {
+    html += '<li><strong>Replicar buenas prácticas:</strong> esta zona genera buen volumen — documentar la rutina exitosa para replicar en zonas de menor performance.</li>';
+  }
+  // Acción por defecto si no se cumple ninguna
+  html += '<li><strong>Seguimiento semanal:</strong> revisar evolución de KPIs y comparar contra semanas anteriores para detectar tendencias.</li>';
+
+  html += '</ol></div>';
+  html += '</div>';
+
+  return html;
+}
+
+function renderAnalisisNacional(depMap, dataFull) {
+  // Identificar oportunidades a nivel nacional
+  var deps = Object.keys(depMap).map(function(k){return Object.assign({nm:k}, depMap[k]);});
+  deps.sort(function(a,b){return b.tot - a.tot;});
+
+  if (deps.length === 0) {
+    return '<div class="empty">Sin datos para analizar. Aplica filtros o revisa la fecha seleccionada.</div>';
+  }
+
+  var topDep = deps[0];
+  var worstDep = deps.filter(function(d){return d.vis > 0;}).sort(function(a,b){return a.ef - b.ef;})[0];
+  var totalNacional = deps.reduce(function(a,d){return a+d.tot;},0);
+  var pctTop = totalNacional > 0 ? Math.round(topDep.tot / totalNacional * 100) : 0;
+
+  // Causal nacional dominante
+  var causalCount = {};
+  dataFull.forEach(function(r){ if(r.modo==='NO'&&r.causal) causalCount[r.causal] = (causalCount[r.causal]||0)+1; });
+  var causalTop = Object.keys(causalCount).sort(function(a,b){return causalCount[b]-causalCount[a];})[0];
+
+  var html = '<div style="background:linear-gradient(135deg,var(--purple-l),#F5F3FF);border-left:4px solid var(--purple);border-radius:12px;padding:16px 18px">';
+  html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">';
+  html += '<span style="font-size:20px">🇵🇪</span>';
+  html += '<div style="font-size:13px;font-weight:700;color:#5B21B6;text-transform:uppercase;letter-spacing:.5px">LECTURA EJECUTIVA NACIONAL</div>';
+  html += '</div>';
+
+  html += '<div style="font-size:13.5px;color:#4C1D95;line-height:1.7;margin-bottom:12px">';
+  html += 'A nivel nacional, <strong>'+topDep.nm+'</strong> lidera con <strong>S/ '+fmt(topDep.tot)+'</strong> ('+pctTop+'% del total). ';
+  if (worstDep && worstDep.nm !== topDep.nm) html += '<strong>'+worstDep.nm+'</strong> presenta la efectividad más baja ('+worstDep.ef+'%) y requiere atención. ';
+  if (causalTop) html += 'La causal predominante en el país es <strong>'+causalTop+'</strong> ('+causalCount[causalTop]+' incidencias).';
+  html += '</div>';
+
+  // Top vs Bottom
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">';
+  // Top
+  html += '<div style="background:var(--green-l);border-radius:8px;padding:11px 13px">';
+  html += '<div style="font-size:10px;font-weight:700;color:#065F46;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">🏆 ZONA DESTACADA</div>';
+  html += '<div style="font-size:14px;font-weight:700;color:#065F46">'+topDep.nm+'</div>';
+  html += '<div style="font-size:11px;color:#047857;margin-top:3px">S/ '+fmt(topDep.tot)+' · '+topDep.vis+' visitas · '+topDep.ef+'%</div>';
+  html += '</div>';
+  // Worst
+  if (worstDep) {
+    html += '<div style="background:var(--red-l);border-radius:8px;padding:11px 13px">';
+    html += '<div style="font-size:10px;font-weight:700;color:#991B1B;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">⚠ ZONA CRÍTICA</div>';
+    html += '<div style="font-size:14px;font-weight:700;color:#991B1B">'+worstDep.nm+'</div>';
+    html += '<div style="font-size:11px;color:#7F1D1D;margin-top:3px">S/ '+fmt(worstDep.tot)+' · '+worstDep.vis+' visitas · '+worstDep.ef+'%</div>';
+    html += '</div>';
+  }
+  html += '</div>';
+
+  // Inputs nacionales
+  html += '<div style="background:rgba(255,255,255,.7);border-radius:8px;padding:11px 13px;margin-bottom:12px">';
+  html += '<div style="font-size:10px;font-weight:700;color:#5B21B6;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">📥 INPUTS NACIONALES</div>';
+  html += '<ul style="margin:0;padding-left:18px;font-size:12.5px;color:#4C1D95;line-height:1.7">';
+
+  var noVendidos = deps.filter(function(d){return d.vis === 0;}).length;
+  if (noVendidos > 0) html += '<li><strong>'+noVendidos+' departamento(s) sin actividad</strong> en el día seleccionado.</li>';
+  if (pctTop >= 50) html += '<li><strong>Concentración alta:</strong> '+topDep.nm+' representa el '+pctTop+'% del total. Riesgo de dependencia geográfica.</li>';
+  if (deps.length >= 5) html += '<li><strong>Buena diversificación geográfica:</strong> '+deps.length+' departamentos activos.</li>';
+  if (causalTop && CAUSALES_INFO[causalTop] && CAUSALES_INFO[causalTop].tipo === 'interna') {
+    html += '<li><strong>Causal interna nacional:</strong> "'+causalTop+'" se repite — coordinación con área comercial y trade marketing.</li>';
+  }
+  // Promedio efectividad
+  var efProm = Math.round(deps.reduce(function(a,d){return a + d.ef;}, 0) / deps.length);
+  html += '<li><strong>Efectividad promedio nacional:</strong> '+efProm+'%' + (efProm >= 60 ? ' (sobre meta)' : ' (bajo meta de 60%)') + '.</li>';
+
+  html += '</ul></div>';
+
+  // Plan de acción nacional
+  html += '<div style="background:rgba(255,255,255,.85);border-radius:8px;padding:11px 13px;border:1.5px dashed var(--purple)">';
+  html += '<div style="font-size:10px;font-weight:700;color:#5B21B6;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">🎯 PLAN DE ACCIÓN ESTRATÉGICO</div>';
+  html += '<ol style="margin:0;padding-left:18px;font-size:12.5px;color:#4C1D95;line-height:1.7">';
+
+  if (worstDep && worstDep.ef < 50) html += '<li><strong>Foco en '+worstDep.nm+':</strong> reunión con supervisor a cargo para revisar plan de recuperación a 30 días.</li>';
+  if (causalTop && CAUSALES_INFO[causalTop] && CAUSALES_INFO[causalTop].tipo === 'interna') {
+    html += '<li><strong>Plan ejecutivo sobre "'+causalTop+'":</strong> coordinar con comercial y trade marketing acciones a nivel nacional.</li>';
+  }
+  if (pctTop >= 50) html += '<li><strong>Diversificación geográfica:</strong> definir 1-2 zonas secundarias para aumentar volumen y reducir dependencia.</li>';
+  html += '<li><strong>Replicar buenas prácticas de '+topDep.nm+':</strong> documentar y compartir con los demás supervisores.</li>';
+  html += '<li><strong>Comité semanal con supervisores:</strong> revisar evolución de KPIs y validar planes de cada zona.</li>';
+
+  html += '</ol></div>';
+  html += '</div>';
+
+  return html;
+}
+
+function renderSkusPorGeo(data) {
+  // SKUs vendidos por departamento
+  var skuPorDep = {};
+  data.forEach(function(r){
+    if(r.modo!=='SI'||!r.pedido) return;
+    var d = r.departamento || 'Sin definir';
+    if(!skuPorDep[d]) skuPorDep[d] = {};
+    r.pedido.forEach(function(p){
+      if(!skuPorDep[d][p.nm]) skuPorDep[d][p.nm] = {qty:0, tot:0};
+      skuPorDep[d][p.nm].qty += p.qty||0;
+      skuPorDep[d][p.nm].tot += (p.qty||0)*(p.price||0);
+    });
+  });
+
+  var html = '<div class="sec">';
+  html += '<div class="sec-hdr"><div class="sec-ttl"><div class="sec-ttl-ico">📦</div>Movimiento de SKUs por Departamento</div></div>';
+
+  var deps = Object.keys(skuPorDep);
+  if (deps.length === 0) {
+    html += '<div class="empty">Sin ventas registradas en esta selección</div>';
+    html += '</div>';
+    return html;
+  }
+
+  deps.forEach(function(dep){
+    var skus = Object.keys(skuPorDep[dep]).map(function(s){return Object.assign({nm:s}, skuPorDep[dep][s]);});
+    skus.sort(function(a,b){return b.tot - a.tot;});
+
+    html += '<div style="margin-bottom:18px;padding:12px;background:var(--bg);border-radius:10px">';
+    html += '<p style="font-size:13px;font-weight:600;margin-bottom:8px;color:var(--blue-d)">📍 '+dep+'</p>';
+    html += '<table class="tbl" style="font-size:11px;background:#fff;border-radius:8px;overflow:hidden">';
+    html += '<thead><tr><th style="font-size:10px">SKU</th><th class="r" style="font-size:10px">UND</th><th class="r" style="font-size:10px">Total S/</th></tr></thead><tbody>';
+    skus.slice(0,6).forEach(function(s){
+      html += '<tr><td>'+s.nm+'</td><td class="r num">'+s.qty+'</td><td class="r num"><strong>S/ '+fmt(s.tot)+'</strong></td></tr>';
+    });
+    html += '</tbody></table>';
+    html += '</div>';
+  });
+  html += '</div>';
+  return html;
+}
+
+// ════════════════════════════════════════════════════════
+// TAB: CONCLUSIONES
+// ════════════════════════════════════════════════════════
+function renderConclusiones() {
+  var data = dataFiltrada();
+  var m = calcMetricas(data);
+
+  var concPos = [], concNeg = [], concAcc = [];
+
+  if (m.ef >= 60) concPos.push('Efectividad por encima del objetivo: <strong>'+m.ef+'%</strong> (meta: 60%).');
+  if (m.ef < 50 && m.vis > 5) concNeg.push('Efectividad por debajo de objetivo: <strong>'+m.ef+'%</strong> (meta: 60%).');
+  if (m.skusAct >= 6) concPos.push('Diversidad de SKUs activados: <strong>'+m.skusAct+'</strong> productos en venta.');
+  if (m.tot > 3000) concPos.push('Excelente nivel de ventas: <strong>S/ '+fmt(m.tot)+'</strong>.');
+
+  // Promotoras sin iniciar
+  var proms = SESION.role==='jefe' ? TODOS_PROMS : (SUP_MAP[SESION.user]||[]);
+  var sinIni = [];
+  proms.forEach(function(p){ var pm = metricasPromotora(data, p); if(pm.vis===0) sinIni.push(p); });
+  if (sinIni.length > 0) concAcc.push('Contactar a <strong>'+sinIni.join(', ')+'</strong> — sin registros del día.');
+
+  // Causal interna top
+  var causalCount = {};
+  data.forEach(function(r){if(r.modo==='NO'&&r.causal&&CAUSALES_INFO[r.causal]&&CAUSALES_INFO[r.causal].tipo==='interna')causalCount[r.causal]=(causalCount[r.causal]||0)+1;});
+  var causalTop = Object.keys(causalCount).sort(function(a,b){return causalCount[b]-causalCount[a];})[0];
+  if (causalTop) concAcc.push('Causa interna recurrente: <strong>'+causalTop+'</strong> ('+causalCount[causalTop]+' veces) — accionar con distribuidor y comercial.');
+
+  var savedNotes = localStorage.getItem('dash_notes_'+SESION.user+'_'+FECHA) || '';
+
+  var html = '<div class="sec">';
+  html += '<div class="sec-hdr"><div class="sec-ttl"><div class="sec-ttl-ico">📝</div>Conclusiones automáticas del día</div></div>';
+
+  if (concPos.length > 0) {
+    html += '<div style="background:var(--green-l);border-left:3px solid var(--green);border-radius:10px;padding:12px 14px;margin-bottom:10px">';
+    html += '<div style="font-size:11px;font-weight:700;color:#065F46;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">✅ ASPECTOS POSITIVOS</div>';
+    html += '<ul style="margin:0;padding-left:18px;font-size:13px;color:#065F46;line-height:1.7">';
+    concPos.forEach(function(p){html+='<li>'+p+'</li>';});
+    html += '</ul></div>';
+  }
+  if (concNeg.length > 0) {
+    html += '<div style="background:var(--red-l);border-left:3px solid var(--red);border-radius:10px;padding:12px 14px;margin-bottom:10px">';
+    html += '<div style="font-size:11px;font-weight:700;color:#991B1B;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">⚠ ASPECTOS A MEJORAR</div>';
+    html += '<ul style="margin:0;padding-left:18px;font-size:13px;color:#991B1B;line-height:1.7">';
+    concNeg.forEach(function(p){html+='<li>'+p+'</li>';});
+    html += '</ul></div>';
+  }
+  if (concAcc.length > 0) {
+    html += '<div style="background:var(--amber-l);border-left:3px solid var(--amber);border-radius:10px;padding:12px 14px">';
+    html += '<div style="font-size:11px;font-weight:700;color:#92400E;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">🎯 ACCIONES SUGERIDAS</div>';
+    html += '<ul style="margin:0;padding-left:18px;font-size:13px;color:#92400E;line-height:1.7">';
+    concAcc.forEach(function(p){html+='<li>'+p+'</li>';});
+    html += '</ul></div>';
+  }
+  html += '</div>';
+
+  html += '<div class="sec">';
+  html += '<div class="sec-hdr"><div class="sec-ttl"><div class="sec-ttl-ico">💬</div>Comentarios ejecutivos · '+SESION.nombre+'</div></div>';
+  html += '<p style="font-size:12px;color:var(--t2);margin-bottom:10px">Anota observaciones del día. Se guarda localmente; en producción se enviará al Google Sheets.</p>';
+  html += '<textarea id="com-txt" class="com-textarea" placeholder="Ej: PROMLIM6 reportó problema con la moto. Coordinación pendiente con DIJISA por stock de Neko 75gr...">'+savedNotes+'</textarea>';
+  html += '<button class="btn-save" onclick="guardarComentario()">💾 Guardar comentarios</button>';
+  html += '<div id="com-saved" style="display:none;margin-top:8px;font-size:11px;color:var(--green)">✓ Comentarios guardados</div>';
+  html += '</div>';
+
+  document.getElementById('content').innerHTML = html;
+}
+
+function guardarComentario() {
+  var txt = document.getElementById('com-txt').value;
+  localStorage.setItem('dash_notes_'+SESION.user+'_'+FECHA, txt);
+  var sv = document.getElementById('com-saved');
+  sv.style.display = 'block';
+  setTimeout(function(){sv.style.display='none';}, 2500);
+}
+
+</script>
+</body>
+</html>
