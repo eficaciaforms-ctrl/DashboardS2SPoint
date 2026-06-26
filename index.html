@@ -71,6 +71,11 @@ button{font-family:inherit;}
 .filt-sel.active{background-color:var(--blue-l);border-color:var(--blue);color:var(--blue-d);font-weight:500;}
 .btn-clear{height:34px;padding:0 12px;border:1px solid var(--border);border-radius:8px;font-size:11px;font-weight:500;background:#fff;color:var(--t2);cursor:pointer;}
 .btn-clear:hover{background:var(--red-l);border-color:var(--red);color:var(--red);}
+/* Presets de rango rápido */
+.presets{display:flex;gap:4px;}
+.preset-btn{height:34px;padding:0 11px;border:1px solid var(--border);border-radius:8px;font-size:11px;font-weight:500;background:var(--bg);color:var(--t2);cursor:pointer;font-family:inherit;transition:.12s;}
+.preset-btn:hover{background:var(--blue-l);border-color:var(--blue);color:var(--blue-d);}
+.preset-btn.on{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:600;}
 
 /* TABS */
 .tabs{background:var(--card);border-bottom:1px solid var(--border);padding:0 24px;display:flex;gap:2px;overflow-x:auto;position:sticky;top:114px;z-index:1080;}
@@ -262,10 +267,6 @@ button{font-family:inherit;}
     <div class="fld">
       <label>Contraseña</label>
       <input type="password" id="lg-pass" placeholder="••••••••" autocomplete="current-password"/>
-    </div>
-    <div class="fld">
-      <label>Fecha de análisis</label>
-      <input type="date" id="lg-date"/>
     </div>
     <button class="btn-login" onclick="doLogin()">Ingresar al Dashboard →</button>
     <div class="login-help">
@@ -633,11 +634,33 @@ function generarDataDemo(fecha) {
   return data;
 }
 
+// Genera datos demo para un rango de fechas inclusivo (Desde -> Hasta)
+function generarDataDemoRango(desde, hasta) {
+  var out = [];
+  if (!desde || !hasta) return out;
+  var d = new Date(desde + 'T12:00:00');
+  var dh = new Date(hasta + 'T12:00:00');
+  while (d <= dh) {
+    var f = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    var dia = generarDataDemo(f);
+    // Asegurar que los IDs son únicos a través del rango (timestamps válidos ≥10 dígitos)
+    var sufFecha = f.replace(/-/g,'').slice(2); // YYMMDD (6 chars)
+    dia.forEach(function(r, i){
+      // Reescribir ID: 17 + sufFecha + index (resulta en ~12 dígitos) para mantener formato timestamp válido
+      r.id = '17' + sufFecha + String(i).padStart(4,'0');
+    });
+    out = out.concat(dia);
+    d.setDate(d.getDate()+1);
+  }
+  return out;
+}
+
 // ════════════════════════════════════════════════════════
 // ESTADO GLOBAL
 // ════════════════════════════════════════════════════════
 var SESION = null;
-var FECHA = "";
+var FECHA_DESDE = "";
+var FECHA_HASTA = "";
 var DATA = [];
 var TAB_ACTUAL = "resumen";
 var FILTROS = { supervisor:"", promotora:"", departamento:"", provincia:"", distrito:"" };
@@ -663,32 +686,39 @@ function fmtFecha(f){if(!f)return'';var p=f.split('-');var dias=['Dom','Lun','Ma
 // LOGIN
 // ════════════════════════════════════════════════════════
 window.addEventListener('load', function(){
-  document.getElementById('lg-date').value = hoy();
-  document.getElementById('lg-date').max = hoy();
   document.getElementById('lg-pass').addEventListener('keydown', function(e){ if(e.key==='Enter') doLogin(); });
   var saved = sessionStorage.getItem('dash_sesion');
   if (saved) {
-    try { SESION = JSON.parse(saved); FECHA = sessionStorage.getItem('dash_fecha') || hoy(); iniciarDash(); } catch(e){}
+    try {
+      SESION = JSON.parse(saved);
+      FECHA_DESDE = sessionStorage.getItem('dash_fecha_desde') || hoy();
+      FECHA_HASTA = sessionStorage.getItem('dash_fecha_hasta') || hoy();
+      iniciarDash();
+    } catch(e){}
   }
 });
 
 function doLogin() {
   var u = document.getElementById('lg-user').value.trim().toUpperCase();
   var p = document.getElementById('lg-pass').value;
-  var f = document.getElementById('lg-date').value || hoy();
   if (!u) { showErr('Ingresa tu usuario'); return; }
   if (!USERS[u]) { showErr('Usuario "'+u+'" no encontrado'); return; }
   if (USERS[u].pass !== p) { showErr('Contraseña incorrecta'); return; }
   SESION = { user:u, role:USERS[u].role, nombre:USERS[u].nombre, zona:USERS[u].zona };
-  FECHA = f;
+  // Rango por defecto: hoy → hoy. El usuario podrá ajustarlo dentro del dashboard.
+  FECHA_DESDE = hoy();
+  FECHA_HASTA = hoy();
   sessionStorage.setItem('dash_sesion', JSON.stringify(SESION));
-  sessionStorage.setItem('dash_fecha', FECHA);
+  sessionStorage.setItem('dash_fecha_desde', FECHA_DESDE);
+  sessionStorage.setItem('dash_fecha_hasta', FECHA_HASTA);
   iniciarDash();
 }
 function showErr(msg){var err=document.getElementById('login-err');err.textContent=msg;err.style.display='block';}
 function logout(){
   if(!confirm('¿Cerrar sesión?')) return;
-  sessionStorage.removeItem('dash_sesion'); sessionStorage.removeItem('dash_fecha');
+  sessionStorage.removeItem('dash_sesion');
+  sessionStorage.removeItem('dash_fecha_desde');
+  sessionStorage.removeItem('dash_fecha_hasta');
   SESION=null;
   document.getElementById('screen-dash').classList.remove('on');
   document.getElementById('screen-login').style.display='flex';
@@ -724,18 +754,105 @@ function setTab(t){
   renderContent();
 }
 
-function onChangeFecha(nueva) {
+function onChangeDesde(nueva) {
   if (!nueva || !/^\d{4}-\d{2}-\d{2}$/.test(nueva)) return;
   if (nueva > hoy()) {
     alert('No se permite fecha futura');
-    var inp = document.getElementById('filt-fecha-input');
-    if (inp) inp.value = FECHA;
+    var inp = document.getElementById('filt-desde-input');
+    if (inp) inp.value = FECHA_DESDE;
     return;
   }
-  FECHA = nueva;
-  sessionStorage.setItem('dash_fecha', FECHA);
+  FECHA_DESDE = nueva;
+  // Si desde > hasta, ajustar hasta al mismo día
+  if (FECHA_DESDE > FECHA_HASTA) FECHA_HASTA = FECHA_DESDE;
+  sessionStorage.setItem('dash_fecha_desde', FECHA_DESDE);
+  sessionStorage.setItem('dash_fecha_hasta', FECHA_HASTA);
   cargarData();
 }
+function onChangeHasta(nueva) {
+  if (!nueva || !/^\d{4}-\d{2}-\d{2}$/.test(nueva)) return;
+  if (nueva > hoy()) {
+    alert('No se permite fecha futura');
+    var inp = document.getElementById('filt-hasta-input');
+    if (inp) inp.value = FECHA_HASTA;
+    return;
+  }
+  FECHA_HASTA = nueva;
+  // Si hasta < desde, ajustar desde al mismo día
+  if (FECHA_HASTA < FECHA_DESDE) FECHA_DESDE = FECHA_HASTA;
+  sessionStorage.setItem('dash_fecha_desde', FECHA_DESDE);
+  sessionStorage.setItem('dash_fecha_hasta', FECHA_HASTA);
+  cargarData();
+}
+function aplicarPreset(preset) {
+  var h = hoy();
+  var hoyD = new Date(h + 'T12:00:00');
+  if (preset === 'hoy') {
+    FECHA_DESDE = h; FECHA_HASTA = h;
+  } else if (preset === 'ayer') {
+    var a = new Date(hoyD); a.setDate(a.getDate()-1);
+    var ayer = a.getFullYear()+'-'+String(a.getMonth()+1).padStart(2,'0')+'-'+String(a.getDate()).padStart(2,'0');
+    FECHA_DESDE = ayer; FECHA_HASTA = ayer;
+  } else if (preset === '7d') {
+    var b = new Date(hoyD); b.setDate(b.getDate()-6);
+    FECHA_DESDE = b.getFullYear()+'-'+String(b.getMonth()+1).padStart(2,'0')+'-'+String(b.getDate()).padStart(2,'0');
+    FECHA_HASTA = h;
+  } else if (preset === '30d') {
+    var c = new Date(hoyD); c.setDate(c.getDate()-29);
+    FECHA_DESDE = c.getFullYear()+'-'+String(c.getMonth()+1).padStart(2,'0')+'-'+String(c.getDate()).padStart(2,'0');
+    FECHA_HASTA = h;
+  } else if (preset === 'mes') {
+    FECHA_DESDE = hoyD.getFullYear()+'-'+String(hoyD.getMonth()+1).padStart(2,'0')+'-01';
+    FECHA_HASTA = h;
+  }
+  sessionStorage.setItem('dash_fecha_desde', FECHA_DESDE);
+  sessionStorage.setItem('dash_fecha_hasta', FECHA_HASTA);
+  cargarData();
+}
+// Identifica el preset activo según las fechas
+function presetActivo() {
+  var h = hoy();
+  if (FECHA_DESDE === h && FECHA_HASTA === h) return 'hoy';
+  var hoyD = new Date(h + 'T12:00:00');
+  var a = new Date(hoyD); a.setDate(a.getDate()-1);
+  var ayer = a.getFullYear()+'-'+String(a.getMonth()+1).padStart(2,'0')+'-'+String(a.getDate()).padStart(2,'0');
+  if (FECHA_DESDE === ayer && FECHA_HASTA === ayer) return 'ayer';
+  var b = new Date(hoyD); b.setDate(b.getDate()-6);
+  var d7 = b.getFullYear()+'-'+String(b.getMonth()+1).padStart(2,'0')+'-'+String(b.getDate()).padStart(2,'0');
+  if (FECHA_DESDE === d7 && FECHA_HASTA === h) return '7d';
+  var c = new Date(hoyD); c.setDate(c.getDate()-29);
+  var d30 = c.getFullYear()+'-'+String(c.getMonth()+1).padStart(2,'0')+'-'+String(c.getDate()).padStart(2,'0');
+  if (FECHA_DESDE === d30 && FECHA_HASTA === h) return '30d';
+  var mesIni = hoyD.getFullYear()+'-'+String(hoyD.getMonth()+1).padStart(2,'0')+'-01';
+  if (FECHA_DESDE === mesIni && FECHA_HASTA === h) return 'mes';
+  return '';
+}
+// Cantidad de días en el rango (inclusivo)
+function diasRango() {
+  if (!FECHA_DESDE || !FECHA_HASTA) return 1;
+  var d1 = new Date(FECHA_DESDE + 'T12:00:00');
+  var d2 = new Date(FECHA_HASTA + 'T12:00:00');
+  return Math.round((d2 - d1) / 86400000) + 1;
+}
+// Listado de días YYYY-MM-DD del rango
+function diasArrayRango() {
+  var out = [];
+  if (!FECHA_DESDE || !FECHA_HASTA) return out;
+  var d = new Date(FECHA_DESDE + 'T12:00:00');
+  var dh = new Date(FECHA_HASTA + 'T12:00:00');
+  while (d <= dh) {
+    out.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'));
+    d.setDate(d.getDate()+1);
+  }
+  return out;
+}
+// Formato amigable del rango
+function fmtRango() {
+  if (FECHA_DESDE === FECHA_HASTA) return fmtFecha(FECHA_DESDE);
+  return fmtFecha(FECHA_DESDE) + ' → ' + fmtFecha(FECHA_HASTA) + ' (' + diasRango() + ' días)';
+}
+// Clave única para localStorage por rango
+function rangoKey() { return FECHA_DESDE + '_' + FECHA_HASTA; }
 function recargar(){ cargarData(); }
 
 // ════════════════════════════════════════════════════════
@@ -786,6 +903,38 @@ function gasGetReal(params, callback) {
     });
 }
 
+// Normalizar fecha que viene del GAS a formato YYYY-MM-DD
+// Acepta: "2026-06-15", "15/06/2026", "Date object serializado", "2026-06-15T00:00:00.000Z", etc.
+function normalizarFecha(raw) {
+  if (!raw) return '';
+  var s = String(raw).trim();
+  // Caso 1: ya está en YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  // Caso 2: ISO completo "2026-06-15T..." → tomar primeros 10
+  if (/^\d{4}-\d{2}-\d{2}T/.test(s)) return s.substring(0, 10);
+  // Caso 3: formato peruano DD/MM/YYYY o DD-MM-YYYY
+  var m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+  if (m) {
+    return m[3] + '-' + m[2].padStart(2,'0') + '-' + m[1].padStart(2,'0');
+  }
+  // Caso 4: formato US MM/DD/YYYY (poco probable pero por seguridad)
+  // Si el segundo grupo es >12, asumimos que el primero es día (DD/MM)
+  // (ya cubierto arriba)
+  // Caso 5: timestamp numérico
+  if (/^\d+$/.test(s)) {
+    var d = new Date(parseInt(s));
+    if (!isNaN(d.getTime())) {
+      return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    }
+  }
+  // Caso 6: intentar parse genérico
+  var dt = new Date(s);
+  if (!isNaN(dt.getTime())) {
+    return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
+  }
+  return s; // devolver original si nada funcionó
+}
+
 // Convertir filas crudas del Sheets a formato DATA del dashboard
 function convertirFilasGAS(filas) {
   if (!filas || !filas.length) return [];
@@ -802,7 +951,7 @@ function convertirFilasGAS(filas) {
     if (!porId[id]) {
       porId[id] = {
         id: id,
-        fecha: String(f[2] || '').trim(),
+        fecha: normalizarFecha(f[2]),
         hora: String(f[3] || '').trim(),
         usuario: String(f[4] || '').trim(),
         dist: String(f[5] || '').trim(),
@@ -853,7 +1002,7 @@ function cargarData() {
     MODO_DATOS = 'DEMO';
     actualizarBannerModo();
     setTimeout(function() {
-      DATA = generarDataDemo(FECHA);
+      DATA = generarDataDemoRango(FECHA_DESDE, FECHA_HASTA);
       EXPANDED_SUPS = {}; EXPANDED_PROMS = {};
       renderFiltros();
       renderContent();
@@ -879,24 +1028,61 @@ function cargarData() {
     return;
   }
 
-  gasGetReal({
-    accion: 'listar_equipo',
-    promotoras: proms.join(','),
-    fecha: FECHA
-  }, function(resp) {
-    if (resp && resp.status === 'ok' && resp.filas) {
-      MODO_DATOS = 'REAL';
-      DATA = convertirFilasGAS(resp.filas);
-    } else {
-      // Si hubo error, mostrar mensaje pero seguir con array vacío
-      MODO_DATOS = 'REAL';
-      DATA = [];
-      console.error('Error al cargar del GAS:', resp);
-    }
+  // Estrategia: una llamada por cada día del rango.
+  // Esto garantiza compatibilidad con el GAS antiguo que solo entiende `fecha` única,
+  // y también funciona con el GAS nuevo (que ignora los días duplicados sin problema).
+  var dias = diasArrayRango();
+  var promsCSV = proms.join(',');
+  var todasFilas = [];
+  var pendientes = dias.length;
+  var diasOK = 0;
+  var diasFail = 0;
+
+  // Mostrar progreso para rangos grandes
+  if (dias.length > 1) {
+    document.getElementById('content').innerHTML =
+      '<div class="loading"><div class="spinner"></div>Cargando ' + dias.length + ' días desde Google Sheets... <span id="progreso-carga">0/' + dias.length + '</span></div>';
+  }
+
+  function actualizarProgreso() {
+    var p = document.getElementById('progreso-carga');
+    if (p) p.textContent = (diasOK + diasFail) + '/' + dias.length;
+  }
+
+  function terminar() {
+    MODO_DATOS = 'REAL';
+    DATA = convertirFilasGAS(todasFilas);
+    // Defensa: filtrar lo que esté fuera del rango (por si el GAS retornó datos de otros días)
+    DATA = DATA.filter(function(r){
+      if (!r.fecha) return false;
+      return r.fecha >= FECHA_DESDE && r.fecha <= FECHA_HASTA;
+    });
     actualizarBannerModo();
     EXPANDED_SUPS = {}; EXPANDED_PROMS = {};
     renderFiltros();
     renderContent();
+    if (diasFail > 0) {
+      console.warn('Días con error de carga:', diasFail, 'de', dias.length);
+    }
+  }
+
+  dias.forEach(function(diaActual) {
+    gasGetReal({
+      accion: 'listar_equipo',
+      promotoras: promsCSV,
+      fecha: diaActual
+    }, function(resp) {
+      if (resp && resp.status === 'ok' && resp.filas) {
+        todasFilas = todasFilas.concat(resp.filas);
+        diasOK++;
+      } else {
+        diasFail++;
+        console.error('Error cargando día', diaActual, resp);
+      }
+      pendientes--;
+      actualizarProgreso();
+      if (pendientes === 0) terminar();
+    });
   });
 }
 
@@ -943,10 +1129,31 @@ function renderFiltros() {
   var fc = document.getElementById('filters');
   var html = '';
 
-  // FECHA: primer filtro, calendario nativo
+  // PRESETS de rango rápido
+  var pAct = presetActivo();
+  var presets = [
+    {id:'hoy', lbl:'Hoy'},
+    {id:'ayer', lbl:'Ayer'},
+    {id:'7d', lbl:'7 días'},
+    {id:'30d', lbl:'30 días'},
+    {id:'mes', lbl:'Este mes'}
+  ];
+  html += '<div class="filt-grp"><div class="filt-lbl">Rango rápido</div><div class="presets">';
+  presets.forEach(function(p){
+    html += '<button class="preset-btn'+(pAct===p.id?' on':'')+'" onclick="aplicarPreset(\''+p.id+'\')">'+p.lbl+'</button>';
+  });
+  html += '</div></div>';
+
+  // DESDE
   html += '<div class="filt-grp">';
-  html += '<div class="filt-lbl">Fecha</div>';
-  html += '<input type="date" class="filt-date' + (FECHA !== hoy() ? ' active' : '') + '" id="filt-fecha-input" value="' + FECHA + '" max="' + hoy() + '" onchange="onChangeFecha(this.value)" />';
+  html += '<div class="filt-lbl">Desde</div>';
+  html += '<input type="date" class="filt-date'+(pAct?'':' active')+'" id="filt-desde-input" value="'+FECHA_DESDE+'" max="'+hoy()+'" onchange="onChangeDesde(this.value)" />';
+  html += '</div>';
+
+  // HASTA
+  html += '<div class="filt-grp">';
+  html += '<div class="filt-lbl">Hasta</div>';
+  html += '<input type="date" class="filt-date'+(pAct?'':' active')+'" id="filt-hasta-input" value="'+FECHA_HASTA+'" min="'+FECHA_DESDE+'" max="'+hoy()+'" onchange="onChangeHasta(this.value)" />';
   html += '</div>';
 
   // Supervisor (solo si es jefe)
@@ -1133,8 +1340,11 @@ function renderResumen() {
   var html = '';
 
   // Hero con storytelling
+  var labelHero = (FECHA_DESDE === FECHA_HASTA)
+    ? '📈 Resumen ejecutivo del día · ' + fmtFecha(FECHA_DESDE)
+    : '📈 Resumen ejecutivo del rango · ' + fmtRango();
   html += '<div class="hero">';
-  html += '<div class="hero-lbl">📈 Resumen ejecutivo del día · ' + fmtFecha(FECHA) + '</div>';
+  html += '<div class="hero-lbl">' + labelHero + '</div>';
   html += '<div class="hero-amount">S/ ' + fmt(m.tot) + '</div>';
   html += '<div class="hero-narr">' + buildNarrativa(m, data) + '</div>';
   html += '</div>';
@@ -1181,7 +1391,7 @@ function renderResumen() {
 }
 
 function buildNarrativa(m, data) {
-  if (m.vis === 0) return 'No hay registros aún para esta fecha y filtros seleccionados.';
+  if (m.vis === 0) return 'No hay registros aún para este rango de fechas y los filtros seleccionados.';
 
   // Quién es el top
   var por = {};
@@ -2547,7 +2757,7 @@ function renderAnalisisNacional(depMap, dataFull) {
   deps.sort(function(a,b){return b.tot - a.tot;});
 
   if (deps.length === 0) {
-    return '<div class="empty">Sin datos para analizar. Aplica filtros o revisa la fecha seleccionada.</div>';
+    return '<div class="empty">Sin datos para analizar. Aplica filtros o revisa el rango de fechas seleccionado.</div>';
   }
 
   var topDep = deps[0];
@@ -2596,7 +2806,7 @@ function renderAnalisisNacional(depMap, dataFull) {
   html += '<ul style="margin:0;padding-left:18px;font-size:12.5px;color:#4C1D95;line-height:1.7">';
 
   var noVendidos = deps.filter(function(d){return d.vis === 0;}).length;
-  if (noVendidos > 0) html += '<li><strong>'+noVendidos+' departamento(s) sin actividad</strong> en el día seleccionado.</li>';
+  if (noVendidos > 0) html += '<li><strong>'+noVendidos+' departamento(s) sin actividad</strong> en el rango seleccionado.</li>';
   if (pctTop >= 50) html += '<li><strong>Concentración alta:</strong> '+topDep.nm+' representa el '+pctTop+'% del total. Riesgo de dependencia geográfica.</li>';
   if (deps.length >= 5) html += '<li><strong>Buena diversificación geográfica:</strong> '+deps.length+' departamentos activos.</li>';
   if (causalTop && CAUSALES_INFO[causalTop] && CAUSALES_INFO[causalTop].tipo === 'interna') {
@@ -2695,10 +2905,11 @@ function renderConclusiones() {
   var causalTop = Object.keys(causalCount).sort(function(a,b){return causalCount[b]-causalCount[a];})[0];
   if (causalTop) concAcc.push('Causa interna recurrente: <strong>'+causalTop+'</strong> ('+causalCount[causalTop]+' veces) — accionar con distribuidor y comercial.');
 
-  var savedNotes = localStorage.getItem('dash_notes_'+SESION.user+'_'+FECHA) || '';
+  var savedNotes = localStorage.getItem('dash_notes_'+SESION.user+'_'+rangoKey()) || '';
 
+  var tituloRango = (FECHA_DESDE === FECHA_HASTA) ? 'del día' : 'del rango';
   var html = '<div class="sec">';
-  html += '<div class="sec-hdr"><div class="sec-ttl"><div class="sec-ttl-ico">📝</div>Conclusiones automáticas del día</div></div>';
+  html += '<div class="sec-hdr"><div class="sec-ttl"><div class="sec-ttl-ico">📝</div>Conclusiones automáticas '+tituloRango+'</div><div style="font-size:11px;color:var(--t2)">'+fmtRango()+'</div></div>';
 
   if (concPos.length > 0) {
     html += '<div style="background:var(--green-l);border-left:3px solid var(--green);border-radius:10px;padding:12px 14px;margin-bottom:10px">';
@@ -2736,7 +2947,7 @@ function renderConclusiones() {
 
 function guardarComentario() {
   var txt = document.getElementById('com-txt').value;
-  localStorage.setItem('dash_notes_'+SESION.user+'_'+FECHA, txt);
+  localStorage.setItem('dash_notes_'+SESION.user+'_'+rangoKey(), txt);
   var sv = document.getElementById('com-saved');
   sv.style.display = 'block';
   setTimeout(function(){sv.style.display='none';}, 2500);
